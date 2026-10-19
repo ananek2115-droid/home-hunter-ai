@@ -1,0 +1,562 @@
+"""HOME HUNTER 4.0 — auditable property-listing monitor."""
+__version__ = "0.1.0"
+
+from .cli import main
+raise SystemExit(main())
+
+from __future__ import annotations
+import argparse, csv, json, sys
+from decimal import Decimal
+from pathlib import Path
+from .dedupe import compare
+from .economics import analyze, purchase_headroom, target_price_for_yield, BUDGET
+from .model import offer_from_row
+from .storage import connect,list_offers,set_candidate,upsert_offer,write_check
+from .verify import inspect
+
+
+def fmt_num(num):
+    return f'{int(num):,}'.replace(',',' ')
+
+
+def import_csv(c, filename):
+    good=bad=0
+    with open(filename,encoding='utf-8-sig',newline='') as f:
+        for i,row in enumerate(csv.DictReader(f),start=2):
+            try:
+                item=offer_from_row(row)
+                upsert_offer(c,item);good+=1
+            except (ValueError,TypeError) as e:
+                print(f'WIERSZ {i}: {e}',file=sys.stderr);bad+=1
+    return good,bad
+
+
+def dedupe(c):
+    data=list_offers(c);n=0
+    for i,(a_uid,a,_) in enumerate(data):
+        for b_uid,b,_ in data[i+1:]:
+            verdict=compare(a,b)
+            if verdict!='different':
+                set_candidate(c,a_uid,b_uid,verdict);n+=1
+    return n
+
+
+def check_all(c,limit):
+    rows=list_offers(c)
+    for idx,(uid,item,_) in enumerate(rows[:limit],1):
+        result=inspect(item)
+        write_check(c,uid,result.status,result.http_status,result.final_url,result.reason)
+        print(f'{idx}/{min(len(rows),limit)} {item.source}:{item.listing_id} {result.status} — {result.reason}')
+    return min(len(rows),limit)
+
+
+def draft_contact(offer):
+    fee = ('Potwierdza Pan/Pani, że zakup odbywa się bez prowizji po stronie kupującego? '
+           if offer.buyer_fee_status != 'confirmed_zero' else '')
+    return (f'Dzień dobry, czy mieszkanie w {offer.city} ({offer.street}, '
+            f'{offer.area_m2} m², cena {fmt_num(offer.price_pln)} zł) jest nadal dostępne? '
+            + fee + 'Jaki jest czynsz administracyjny latem i zimą, czy instalacje wymagają prac '
+            'i czy budynek ma zaplanowane większe remonty? Czy można otrzymać dokumenty '
+            'potwierdzające stan prawny oraz czy cena podlega negocjacji?')
+
+
+def generate_report(c,output):
+    all_items=list_offers(c);verified=[];review=[];archived=[]
+    for uid,offer,info in all_items:
+        item=(uid,offer,info,analyze(offer))
+        if info['verification_status']=='online_matched' and item[3].total_cost<=BUDGET:
+            verified.append(item)
+        elif info['verification_status'] in {'removed_link','content_mismatch','invalid_url'}:
+            archived.append(item)
+        else:
+            review.append(item)
+    # By yield only when available; no fabricated 0–100 scoring without price/rent evidence.
+    verified.sort(key=lambda a: (a[3].yield_pct is not None,a[3].yield_pct or Decimal('-1000')),reverse=True)
+    lines=['# HOME HUNTER AI 4.0 — raport audytowalny','',
+           f'**Budżet całkowity: {fmt_num(BUDGET)} zł.**',
+           '',f'Aktywne online, z rozpoznanymi parametrami: **{len(verified)}**. '
+           f'Do kontroli: **{len(review)}**. Niedziałające/niezgodne linki: **{len(archived)}**.',
+           '', '⚠️ Status `online_matched` oznacza dopasowanie zawartości strony, **nie** potwierdzenie dostępności przez sprzedającego.',
+           'Szacunki są przed kredytem; rentowność jest modelowana. Rezerwa podatkowa PCC 2% jest domyślnym wariantem, nie rozstrzygnięciem prawnym.',
+           '', '## Zweryfikowane online — kandydaci (niepotwierdzeni przez sprzedającego)','']
+    if not verified:lines.append('_Brak ofert, które spełniły wszystkie warunki automatycznej weryfikacji._')
+    for uid,o,info,a in verified:
+        cost_ok=a.total_cost<=BUDGET
+        fee_ok=o.seller_type=='owner' or o.buyer_fee_status=='confirmed_zero'
+        lines.extend([
+            f'### {o.city} / {o.street} — {fmt_num(o.price_pln)} zł',
+            f'- Link: {o.url}',
+            f'- Identyfikator: `{uid}` / `{o.source}:{o.listing_id}`; status: `{info["verification_status"]}`; sprawdzono: `{info["checked_at"]}`',
+            f'- Powierzchnia: {o.area_m2} m², pokoje: {o.rooms}; pełny nakład modelowy: **{fmt_num(a.total_cost)} zł**.',
+            f'- Najem prognozowany: {fmt_num(o.estimated_rent_pln)} zł; stopa netto: **{a.yield_pct:.2f}%**.' if a.yield_pct is not None else '- Najem i rentowność: **brak wystarczających danych**.',
+            f'- Limit: {"w budżecie" if cost_ok else "POZA BUDŻETEM"}; bezpośrednio/0%: {"wstępnie tak" if fee_ok else "NIEPOTWIERDZONE"}; prowizja: `{o.buyer_fee_status}`.',
+            f'- Liczba porównań najmu: {o.rent_comps_count}; ocena końcowa 0–100: **wstrzymana** bez rzetelnych porównań sprzedaży i stanu technicznego.',
+            f'- Cena maksymalna dla 4% netto (model): {fmt_num(target_price_for_yield(o))} zł.' if target_price_for_yield(o) is not None else '- Cena maksymalna dla 4% netto: nieustalona.',
+            f'- Uwagi: {o.notes or "brak"}',
+            f'- Wiadomość do sprzedającego (do ręcznej wysyłki): {draft_contact(o)}', ''])
+    lines += ['## Do weryfikacji (nie umieszczać w rankingu aktywnych)','']
+    if not review:lines.append('_Brak._')
+    for uid,o,info,a in review:
+        lines.append(f'- **{o.city}, {o.street}** — {fmt_num(o.price_pln)} zł — `{info["verification_status"]}` — {info["check_note"] or "brak kontroli"} — {o.url}')
+    lines += ['', '## Wykluczone linki','']
+    if not archived:lines.append('_Brak._')
+    for uid,o,info,a in archived:
+        lines.append(f'- **{o.city}, {o.street}** — `{info["verification_status"]}` — {info["check_note"]} — {o.url}')
+    lines += ['', '## Możliwe duplikaty — kontrola ręczna','']
+    cand=c.execute('SELECT * FROM duplicate_candidates ORDER BY first_uid,second_uid').fetchall()
+    if not cand:lines.append('_Brak._')
+    for x in cand:lines.append(f'- Oferta #{x["first_uid"]} ↔ #{x["second_uid"]}: {x["verdict"]}')
+    lines+=['','## Zasada publikacji','',
+            'Nie przedstawiaj oferty jako dostępnej do zakupu bez kontaktu ze sprzedającym. '
+            'Nie traktuj 403, 429, CAPTCHA, strony ładowanej JS lub blokady robots jako dowodu usunięcia ogłoszenia. '
+            'Nie traktuj czynszu z oferty jako gwarantowanego przychodu.', '']
+    Path(output).parent.mkdir(parents=True,exist_ok=True)
+    Path(output).write_text('\n'.join(lines),encoding='utf-8')
+    return len(verified),len(review),len(archived)
+
+
+def main(argv=None):
+    p=argparse.ArgumentParser(prog='home-hunter',description='Walidator nieruchomości bez zgadywania statusu')
+    p.add_argument('--db',default='data/home_hunter.sqlite3')
+    sub=p.add_subparsers(dest='cmd',required=True)
+    sub.add_parser('init')
+    x=sub.add_parser('import-csv');x.add_argument('file')
+    sub.add_parser('dedupe')
+    x=sub.add_parser('check');x.add_argument('--limit',type=int,default=40)
+    x=sub.add_parser('report');x.add_argument('--out',default='reports/latest.md')
+    args=p.parse_args(argv)
+    c=connect(args.db)
+    try:
+        if args.cmd=='init':print(f'Utworzono bazę: {args.db}')
+        elif args.cmd=='import-csv':
+            ok,bad=import_csv(c,args.file);print(f'Zaimportowano: {ok}; błędne: {bad}')
+            if bad: return 1
+        elif args.cmd=='dedupe':print(f'Zapisano par do przeglądu: {dedupe(c)}')
+        elif args.cmd=='check':print(f'Sprawdzono: {check_all(c,args.limit)}')
+        elif args.cmd=='report':print(f'Raport: {args.out}; kategorie: {generate_report(c,args.out)}')
+    finally:c.close()
+    return 0
+
+if __name__=='__main__':raise SystemExit(main())
+
+from __future__ import annotations
+import re
+import unicodedata
+from decimal import Decimal
+from .model import Offer
+
+
+def normalize(s: str) -> str:
+    s=''.join(c for c in unicodedata.normalize('NFKD',str(s).casefold()) if not unicodedata.combining(c))
+    return ' '.join(re.findall(r'[a-z0-9]+',s))
+
+
+def jaccard(a: str,b: str) -> float:
+    aa=set(normalize(a).split()); bb=set(normalize(b).split())
+    return len(aa & bb)/len(aa | bb) if (aa|bb) else 0
+
+
+def compare(a: Offer,b: Offer) -> str:
+    """same / possible / different — never auto merge just because titles resemble one another."""
+    if normalize(a.city) != normalize(b.city):
+        return 'different'
+    if a.source == b.source and a.listing_id and b.listing_id and a.listing_id == b.listing_id:
+        return 'same'
+    if abs(a.area_m2-b.area_m2) > Decimal('0.5') or a.rooms != b.rooms:
+        return 'different'
+    if a.floor is not None and b.floor is not None and a.floor != b.floor:
+        return 'different'
+    if a.photo_fingerprint and a.photo_fingerprint == b.photo_fingerprint:
+        return 'same'
+    if a.street and b.street and normalize(a.street)!=normalize(b.street):
+        return 'different'
+    if a.street and b.street and normalize(a.street)==normalize(b.street):
+        if a.house_no and b.house_no and normalize(a.house_no)!=normalize(b.house_no):
+            return 'different'
+        # Adjacent flats in the same block can share dimensions. Human review is mandatory.
+        return 'possible'
+    return 'possible' if jaccard(a.notes,b.notes)>.80 and a.notes and b.notes else 'different'
+
+from __future__ import annotations
+from dataclasses import dataclass
+from decimal import Decimal
+from .model import Offer
+
+BUDGET = Decimal('750000')
+
+@dataclass(frozen=True)
+class Investment:
+    total_cost: Decimal
+    gross_annual_rent: Decimal
+    effective_annual_rent: Decimal
+    after_tax_annual_net: Decimal
+    yield_pct: Decimal | None
+    cost_confirmed: bool
+    ready_for_scoring: bool
+
+
+def analyze(offer: Offer, *, pcc_rate: Decimal = Decimal('0.02'),
+            transaction_reserve: Decimal = Decimal('5000'),
+            vacant_months: int = 1, tax_rate: Decimal = Decimal('0.085')) -> Investment:
+    if not 0 <= vacant_months <= 12:
+        raise ValueError('Pustostan poza zakresem 0–12 miesięcy')
+    if any(r < 0 for r in (pcc_rate, transaction_reserve, tax_rate)):
+        raise ValueError('Ujemna stawka lub rezerwa')
+    total=(offer.price_pln*(1+pcc_rate)+transaction_reserve+
+           offer.obligatory_extras_pln+offer.preparation_pln+offer.buyer_fee_pln)
+    full=offer.estimated_rent_pln*12
+    collected=offer.estimated_rent_pln*(12-vacant_months)
+    net=collected*(1-tax_rate)-offer.yearly_owner_cost_pln
+    yield_pct=(net/total*100) if total>0 and offer.estimated_rent_pln>0 else None
+    # Unconfirmed intermediary fee or poor rent comparables cannot become a definitive score.
+    return Investment(total,full,collected,net,yield_pct,
+                      offer.buyer_fee_status != 'unknown',
+                      offer.buyer_fee_status != 'unknown' and offer.rent_comps_count>=3)
+
+
+def purchase_headroom(offer: Offer, **kwargs) -> Decimal:
+    return BUDGET-analyze(offer,**kwargs).total_cost
+
+
+def target_price_for_yield(offer: Offer, target_pct=Decimal('4'), **kwargs) -> Decimal | None:
+    if offer.estimated_rent_pln <= 0:
+        return None
+    current=analyze(offer,**kwargs)
+    if current.after_tax_annual_net <= 0:
+        return None
+    # fixed extra costs and proportional PCC must be allocated consistently
+    pcc_rate=kwargs.get('pcc_rate',Decimal('0.02'))
+    reserve=kwargs.get('transaction_reserve',Decimal('5000'))
+    nonprice=reserve+offer.obligatory_extras_pln+offer.preparation_pln+offer.buyer_fee_pln
+    allowed_total=current.after_tax_annual_net*100/Decimal(str(target_pct))
+    return (allowed_total-nonprice)/(1+pcc_rate)
+
+from __future__ import annotations
+
+import dataclasses
+from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
+from typing import Optional
+
+
+def money(value) -> Decimal:
+    try:
+        return Decimal(str(value).replace(' ', '').replace(',', '.'))
+    except InvalidOperation as exc:
+        raise ValueError(f"Nieprawidłowa kwota: {value!r}") from exc
+
+
+@dataclass(frozen=True)
+class Offer:
+    source: str
+    listing_id: str
+    url: str
+    city: str
+    street: str
+    price_pln: Decimal
+    area_m2: Decimal
+    rooms: int
+    floor: Optional[int] = None
+    district: str = ''
+    house_no: str = ''
+    seller_type: str = 'unknown'  # owner, agency, unknown
+    buyer_fee_status: str = 'unknown'  # confirmed_zero, amount, unknown
+    buyer_fee_pln: Decimal = Decimal('0')
+    obligatory_extras_pln: Decimal = Decimal('0')
+    preparation_pln: Decimal = Decimal('0')
+    estimated_rent_pln: Decimal = Decimal('0')
+    rent_comps_count: int = 0
+    yearly_owner_cost_pln: Decimal = Decimal('4800')
+    photo_fingerprint: str = ''
+    notes: str = ''
+
+    def validate(self):
+        from urllib.parse import urlsplit
+        x = urlsplit(self.url)
+        if x.scheme != 'https' or not x.hostname or x.username or x.password:
+            raise ValueError('Adres ogłoszenia musi być pełnym publicznym HTTPS URL')
+        if self.city.casefold().strip() not in {'gdańsk','gdansk','gdynia','sopot'}:
+            raise ValueError('Poza Trójmiastem')
+        if self.area_m2 < Decimal('35'):
+            raise ValueError('Metraż poniżej 35 m²')
+        if self.price_pln <= 0 or self.rooms <= 0:
+            raise ValueError('Cena i liczba pokoi muszą być dodatnie')
+        if self.seller_type not in {'owner','agency','unknown'}:
+            raise ValueError('Nieznany rodzaj sprzedającego')
+        if self.buyer_fee_status not in {'confirmed_zero','amount','unknown'}:
+            raise ValueError('Nieznany status prowizji')
+        if self.buyer_fee_status == 'amount' and self.buyer_fee_pln <= 0:
+            raise ValueError('Dla prowizji amount podaj kwotę dodatnią')
+        if any(x < 0 for x in (self.buyer_fee_pln, self.obligatory_extras_pln, self.preparation_pln, self.estimated_rent_pln, self.yearly_owner_cost_pln)):
+            raise ValueError('Koszty nie mogą być ujemne')
+
+
+def offer_from_row(row: dict) -> Offer:
+    def d(key, default='0'):
+        return money(row.get(key) or default)
+    def integer(key, default=0):
+        v = row.get(key)
+        return int(v) if v not in (None,'') else default
+    item=Offer(
+        source=(row.get('source') or '').strip().lower(),
+        listing_id=(row.get('listing_id') or '').strip(),
+        url=(row.get('url') or '').strip(),
+        city=(row.get('city') or '').strip(),
+        street=(row.get('street') or '').strip(),
+        price_pln=d('price_pln'), area_m2=d('area_m2'), rooms=integer('rooms'),
+        floor=integer('floor') if row.get('floor') not in (None,'') else None,
+        district=(row.get('district') or '').strip(), house_no=(row.get('house_no') or '').strip(),
+        seller_type=(row.get('seller_type') or 'unknown').strip().lower(),
+        buyer_fee_status=(row.get('buyer_fee_status') or 'unknown').strip().lower(),
+        buyer_fee_pln=d('buyer_fee_pln'), obligatory_extras_pln=d('obligatory_extras_pln'),
+        preparation_pln=d('preparation_pln'), estimated_rent_pln=d('estimated_rent_pln'),
+        rent_comps_count=integer('rent_comps_count'), yearly_owner_cost_pln=d('yearly_owner_cost_pln','4800'),
+        photo_fingerprint=(row.get('photo_fingerprint') or '').strip(), notes=(row.get('notes') or '').strip(),
+    )
+    item.validate()
+    return item
+
+
+def offer_to_json(offer: Offer) -> dict:
+    return {k: str(v) if isinstance(v, Decimal) else v for k,v in dataclasses.asdict(offer).items()}
+
+
+def offer_from_json(value: dict) -> Offer:
+    return offer_from_row(value)
+
+from __future__ import annotations
+import sqlite3, json
+from datetime import datetime, timezone
+from pathlib import Path
+from .model import Offer, offer_to_json, offer_from_json
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec='seconds')
+
+
+def connect(path: str):
+    Path(path).parent.mkdir(parents=True,exist_ok=True)
+    c=sqlite3.connect(path)
+    c.row_factory=sqlite3.Row
+    c.execute('PRAGMA foreign_keys=ON')
+    c.executescript('''
+    CREATE TABLE IF NOT EXISTS offers (
+      uid INTEGER PRIMARY KEY AUTOINCREMENT,
+      url TEXT NOT NULL UNIQUE,
+      source TEXT NOT NULL,
+      listing_id TEXT,
+      offer_json TEXT NOT NULL,
+      verification_status TEXT NOT NULL DEFAULT 'never_checked',
+      checked_at TEXT,
+      check_note TEXT,
+      final_url TEXT,
+      updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS observations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      offer_uid INTEGER NOT NULL REFERENCES offers(uid) ON DELETE CASCADE,
+      recorded_at TEXT NOT NULL,
+      asking_price_pln TEXT NOT NULL,
+      observation_type TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS checks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      offer_uid INTEGER NOT NULL REFERENCES offers(uid) ON DELETE CASCADE,
+      checked_at TEXT NOT NULL,
+      result TEXT NOT NULL,
+      http_status INTEGER,
+      final_url TEXT,
+      detail TEXT
+    );
+    CREATE TABLE IF NOT EXISTS duplicate_candidates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      first_uid INTEGER NOT NULL,
+      second_uid INTEGER NOT NULL,
+      verdict TEXT NOT NULL,
+      UNIQUE(first_uid,second_uid)
+    );
+    ''')
+    c.commit();return c
+
+
+def upsert_offer(c, offer: Offer):
+    now=utc_now(); value=json.dumps(offer_to_json(offer),ensure_ascii=False)
+    prev=c.execute('SELECT uid,offer_json FROM offers WHERE url=?',(offer.url,)).fetchone()
+    if prev:
+        uid=prev['uid']; old=json.loads(prev['offer_json'])
+        new=offer_to_json(offer)
+        identity_fields=('price_pln','area_m2','rooms','city','street','listing_id')
+        needs_recheck=any(old.get(key)!=new.get(key) for key in identity_fields)
+        if needs_recheck:
+            c.execute('''UPDATE offers SET offer_json=?,updated_at=?,source=?,listing_id=?,
+                         verification_status='never_checked',checked_at=NULL,
+                         check_note='Key data changed: revalidation required',final_url=NULL
+                         WHERE uid=?''',
+                      (value,now,offer.source,offer.listing_id,uid))
+        else:
+            c.execute('UPDATE offers SET offer_json=?,updated_at=?,source=?,listing_id=? WHERE uid=?',
+                      (value,now,offer.source,offer.listing_id,uid))
+        if old.get('price_pln') != str(offer.price_pln):
+            c.execute('INSERT INTO observations (offer_uid,recorded_at,asking_price_pln,observation_type) VALUES (?,?,?,?)',
+                      (uid,now,str(offer.price_pln),'imported_price_change'))
+    else:
+        cur=c.execute('INSERT INTO offers (url,source,listing_id,offer_json,updated_at) VALUES (?,?,?,?,?)',
+                      (offer.url,offer.source,offer.listing_id,value,now));uid=cur.lastrowid
+        c.execute('INSERT INTO observations (offer_uid,recorded_at,asking_price_pln,observation_type) VALUES (?,?,?,?)',
+                  (uid,now,str(offer.price_pln),'first_import'))
+    c.commit();return uid
+
+
+def list_offers(c):
+    return [(r['uid'],offer_from_json(json.loads(r['offer_json'])),dict(r)) for r in c.execute('SELECT * FROM offers ORDER BY uid').fetchall()]
+
+
+def write_check(c, uid, result, http_status=None, final_url='',detail=''):
+    now=utc_now()
+    c.execute('UPDATE offers SET verification_status=?,checked_at=?,check_note=?,final_url=? WHERE uid=?',
+              (result,now,detail,final_url,uid))
+    c.execute('INSERT INTO checks (offer_uid,checked_at,result,http_status,final_url,detail) VALUES (?,?,?,?,?,?)',
+              (uid,now,result,http_status,final_url,detail))
+    c.commit()
+
+
+def set_candidate(c, a,b,verdict):
+    if verdict=='different':return
+    x,y=sorted((a,b))
+    c.execute('INSERT INTO duplicate_candidates(first_uid,second_uid,verdict) VALUES (?,?,?) ON CONFLICT(first_uid,second_uid) DO UPDATE SET verdict=excluded.verdict',(x,y,verdict))
+    c.commit()
+
+from __future__ import annotations
+from dataclasses import dataclass
+import ipaddress, re, socket, urllib.error, urllib.parse, urllib.request, urllib.robotparser
+from html.parser import HTMLParser
+from .model import Offer
+from .dedupe import normalize
+
+MAX_BYTES=650000
+# Reject private endpoints and restrict scraping to explicit public listing domains.
+# Any additional provider must be reviewed before being added here.
+ALLOWED_DOMAINS = (
+    'olx.pl', 'otodom.pl', 'morizon.pl', 'gratka.pl',
+    'nieruchomosci-online.pl', 'trojmiasto.pl', 'domiporta.pl',
+    'oferty.net', 'domy.pl', 'rynekpierwotny.pl', 'lento.pl',
+    'partnerzy.pl', 'szybko.pl', 'homeexperts.pl',
+)
+
+def allowed_domain(host: str) -> bool:
+    return any(host==suffix or host.endswith('.'+suffix) for suffix in ALLOWED_DOMAINS)
+USER_AGENT='HomeHunter-ResearchValidator/0.1 (+manual-review; respects robots.txt)'
+
+@dataclass(frozen=True)
+class CheckResult:
+    status: str
+    http_status: int|None
+    final_url: str
+    reason: str
+
+class PageText(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.text=[]; self.skip=0
+    def handle_starttag(self,tag,attrs):
+        if tag in {'script','style'}:self.skip+=1
+        if tag == 'meta':
+            data=dict(attrs)
+            if data.get('property') in {'og:title','og:description'} or data.get('name')=='description':
+                self.text.append(data.get('content',''))
+    def handle_endtag(self,tag):
+        if tag in {'script','style'}: self.skip=max(0,self.skip-1)
+    def handle_data(self,data):
+        if not self.skip:self.text.append(data)
+
+def safe_public_url(url: str) -> bool:
+    try:
+        parts=urllib.parse.urlsplit(url)
+        if parts.scheme!='https' or not parts.hostname or parts.username or parts.password or parts.port not in (None,443):
+            return False
+        # Reject IP literals (especially private/metadata endpoints). DNS rebinding is an
+        # additional concern if later accepting arbitrary untrusted URLs at scale.
+        try:
+            ipaddress.ip_address(parts.hostname)
+            return False
+        except ValueError:pass
+        if parts.hostname.lower() in {'localhost'} or '.' not in parts.hostname:
+            return False
+        if not allowed_domain(parts.hostname.lower()):
+            return False
+        return True
+    except ValueError:
+        return False
+
+
+class SafeRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not safe_public_url(newurl):
+            raise urllib.error.URLError('Redirect to disallowed location')
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def _default_fetch(url: str) -> tuple[int,str,str]:
+    req=urllib.request.Request(url,headers={'User-Agent':USER_AGENT,'Accept':'text/html'})
+    opener=urllib.request.build_opener(SafeRedirect)
+    try:
+        with opener.open(req,timeout=12) as resp:
+            return resp.status,resp.geturl(),resp.read(MAX_BYTES).decode('utf-8','replace')
+    except urllib.error.HTTPError as exc:
+        return exc.code,exc.geturl(),''
+
+
+def _price_seen(text: str, price) -> bool:
+    digits=str(int(price))
+    # 650000, 650 000, 650.000 (but not a longer adjacent price)
+    return bool(re.search(r'(?<!\d)'+r'[\s.,\u00a0]*'.join(map(re.escape,[digits[:3],digits[3:]])) +r'(?!\d)',text)) if len(digits)==6 else bool(re.search(r'(?<!\d)'+re.escape(digits)+r'(?!\d)',text))
+
+
+def inspect(offer: Offer, fetch=None, robots_check=True) -> CheckResult:
+    """'online_matched' means page identity checked, NOT that owner confirmed availability."""
+    fetch=fetch or _default_fetch
+    if not safe_public_url(offer.url):
+        return CheckResult('invalid_url',None,'','Unsafe or invalid URL')
+    host=urllib.parse.urlsplit(offer.url).hostname
+    if robots_check:
+        try:
+            rp=urllib.robotparser.RobotFileParser(f'https://{host}/robots.txt')
+            rp.read()
+            if not rp.can_fetch(USER_AGENT,offer.url):
+                return CheckResult('access_restricted',None,offer.url,'robots.txt disallows automated access')
+        except (OSError,ValueError,TimeoutError,urllib.error.URLError):
+            return CheckResult('needs_manual_review',None,offer.url,'Could not verify robots.txt')
+    try:
+        status,final_url,html=fetch(offer.url)
+    except (OSError,TimeoutError,urllib.error.URLError,socket.timeout) as exc:
+        return CheckResult('needs_manual_review',None,offer.url,f'Network error: {type(exc).__name__}')
+    if status in (404,410):return CheckResult('removed_link',status,final_url,'Listing link is gone; sale not proven')
+    if status in (401,403,429):return CheckResult('access_restricted',status,final_url,'Access denied/rate limited; no availability conclusion')
+    if status!=200:return CheckResult('needs_manual_review',status,final_url,'Unexpected HTTP status')
+    if not safe_public_url(final_url):return CheckResult('content_mismatch',status,final_url,'Redirect to unsafe/non-HTTPS target')
+    original_host=urllib.parse.urlsplit(offer.url).hostname.removeprefix('www.')
+    final_host=urllib.parse.urlsplit(final_url).hostname.removeprefix('www.')
+    if original_host!=final_host:return CheckResult('needs_manual_review',status,final_url,'Cross-domain redirect requires manual validation')
+    if offer.listing_id and offer.listing_id.casefold() in offer.url.casefold() and offer.listing_id.casefold() not in final_url.casefold():
+        return CheckResult('content_mismatch',status,final_url,'Redirect to different listing ID')
+    page=PageText();page.feed(html[:MAX_BYTES]);txt=' '.join(page.text)
+    norm=normalize(txt)
+    if len(norm)<80:return CheckResult('needs_manual_review',status,final_url,'Not enough visible page content / JavaScript rendering')
+    if any(x in norm[:5000] for x in ('ogloszenie nie jest juz dostepne','ogloszenie wygaslo','oferta nieaktualna','listing no longer available')):
+        return CheckResult('removed_link',status,final_url,'In-page notice says listing unavailable')
+    if any(x in norm[:4000] for x in ('captcha','verify you are human','wlacz javascript','enable javascript')):
+        return CheckResult('access_restricted',status,final_url,'Anti-bot / JavaScript-only page')
+    # Prefer not to label anything as confirmed on weak text: require city AND area AND price.
+    city=normalize(offer.city)
+    city_ok=city in norm or (city=='gdansk' and 'gdańsk' in txt.casefold())
+    area=float(offer.area_m2)
+    patterns={f'{area:g}',f'{area:.2f}',f'{area:.2f}'.replace('.',','),f'{area:.1f}'.replace('.',',')}
+    area_ok=any(re.search(r'(?<!\d)'+re.escape(p)+r'\s*(?:m2|m²|metrow|metr)',normalize(txt.replace('²','2'))) for p in patterns)
+    # Also look at numeric area mention next to 'm', but never area alone.
+    if not area_ok:area_ok=any(p in txt for p in patterns) and ('m²' in txt or 'm2' in norm)
+    price_ok=_price_seen(txt,offer.price_pln)
+    if city_ok and area_ok and price_ok:
+        return CheckResult('online_matched',status,final_url,'City, area and asking price observed; owner not contacted')
+    missing=', '.join(n for n,ok in [('city',city_ok),('area',area_ok),('price',price_ok)] if not ok)
+    return CheckResult('needs_manual_review',status,final_url,f'Missing/mismatched fields: {missing}')
