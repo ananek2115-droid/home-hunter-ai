@@ -12,10 +12,10 @@ Szacunki są przed kredytem; rentowność jest modelowana. Rezerwa podatkowa PCC
 _Brak ofert, które spełniły wszystkie warunki automatycznej weryfikacji._
 ## Do weryfikacji (nie umieszczać w rankingu aktywnych)
 
-- **Gdynia, Podgórska** — 429 000 zł — `never_checked` — brak kontroli — https://www.olx.pl/d/oferta/3-pokojowe-mieszkanie-w-gdyni-obluzu-z-wyposazeniem-sprzedaz-prywatna-CID3-ID1c9Rp4.html
-- **Gdynia, Witomino** — 489 000 zł — `never_checked` — brak kontroli — https://www.olx.pl/d/oferta/wyposazone-2-pokoje-bez-dodatkowych-nakladow-finansowych-CID3-ID1cCPhR.html
-- **Gdynia, Redłowo** — 650 000 zł — `never_checked` — brak kontroli — https://www.olx.pl/d/oferta/przytulne-mieszkanie-na-plycie-redlowskiej-CID3-ID1aQR63.html
-- **Gdańsk, Przymorze** — 650 000 zł — `never_checked` — brak kontroli — https://www.olx.pl/d/oferta/sprzedam-atrakcyjne-mieszkanie-2-pokojowe-w-gdansku-przymorzu-idealne-do-zamieszkania-lub-jako-inwestycja-CID3-ID1b7Qf1.html
+- **Gdynia, Podgórska** — 429 000 zł — `access_restricted` — robots.txt disallows automated access — https://www.olx.pl/d/oferta/3-pokojowe-mieszkanie-w-gdyni-obluzu-z-wyposazeniem-sprzedaz-prywatna-CID3-ID1c9Rp4.html
+- **Gdynia, Witomino** — 489 000 zł — `access_restricted` — robots.txt disallows automated access — https://www.olx.pl/d/oferta/wyposazone-2-pokoje-bez-dodatkowych-nakladow-finansowych-CID3-ID1cCPhR.html
+- **Gdynia, Redłowo** — 650 000 zł — `access_restricted` — robots.txt disallows automated access — https://www.olx.pl/d/oferta/przytulne-mieszkanie-na-plycie-redlowskiej-CID3-ID1aQR63.html
+- **Gdańsk, Przymorze** — 650 000 zł — `access_restricted` — robots.txt disallows automated access — https://www.olx.pl/d/oferta/sprzedam-atrakcyjne-mieszkanie-2-pokojowe-w-gdansku-przymorzu-idealne-do-zamieszkania-lub-jako-inwestycja-CID3-ID1b7Qf1.html
 
 ## Wykluczone linki
 
