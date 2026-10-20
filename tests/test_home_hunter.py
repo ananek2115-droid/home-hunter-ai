@@ -284,3 +284,39 @@ class CitySourceIntegrityTests(unittest.TestCase):
         found=candidate(item,'Gdynia')
         self.assertEqual(found['price_pln'],665000)
         self.assertEqual(found['area_m2'],54.0)
+
+class RebuiltPipelineTests(unittest.TestCase):
+    def seed(self, conn, url, city, title, price, area, when="2026-10-20T17:00:00+00:00"):
+        conn.execute("""INSERT INTO discoveries
+          (url,city,source,title,snippet,price_pln,area_m2,status,first_seen,last_seen)
+          VALUES (?,?,?,?,?,?,?,?,?,?)""",
+          (url,city,"domy.pl",title,title,price,area,"preliminary",when,when))
+        conn.commit()
+
+    def test_history_reconciled_without_losing_timestamps(self):
+        from home_hunter.ranking import reconcile_discoveries
+        with tempfile.TemporaryDirectory() as d:
+            c=connect(str(Path(d)/"x.db"))
+            self.seed(c,"https://domy.pl/mieszkanie/gdansk-3-pokoje-1730000-pln-79m2-sba/dol1745211758",
+                      "Gdańsk","Mieszkanie Gdańsk 1 730 000 PLN",730000,79)
+            self.seed(c,"https://domy.pl/mieszkanie/bydgoszcz-2-pokoje-345000-pln-42m2-sba/dol1745211933",
+                      "Sopot","Mieszkanie Bydgoszcz",345000,42)
+            counts=reconcile_discoveries(c)
+            self.assertEqual(counts['excluded'],2)
+            self.assertEqual(c.execute("SELECT COUNT(*) FROM discoveries WHERE status='excluded'").fetchone()[0],2)
+            self.assertEqual(c.execute("SELECT COUNT(*) FROM discoveries").fetchone()[0],2)
+            c.close()
+
+    def test_ranking_has_fresh_unverified_results(self):
+        from datetime import datetime, timezone
+        from home_hunter.ranking import reconcile_discoveries, discovery_report
+        with tempfile.TemporaryDirectory() as d:
+            c=connect(str(Path(d)/"x.db"))
+            self.seed(c,"https://domy.pl/mieszkanie/torun-2-pokoje-550000-pln-46m2-sba/dol1745212213",
+                      "Toruń","Mieszkanie Toruń 550000 PLN 46m2",550000,46)
+            reconcile_discoveries(c)
+            report="\n".join(discovery_report(c, now=datetime(2026,10,20,20,0,tzinfo=timezone.utc)))
+            self.assertIn("Nowo wykryte",report)
+            self.assertIn("550 000 zł",report)
+            self.assertIn("jeszcze bez weryfikacji",report)
+            c.close()
