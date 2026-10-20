@@ -2,12 +2,12 @@
 
 **Budżet całkowity: 750 000 zł.**
 
-Aktywne online, z rozpoznanymi parametrami: **0**. Do kontroli: **4**. Niedziałające/niezgodne linki: **0**.
+Strony dopasowane w ostatnich 48 h i w budżecie: **0**. Do kontroli: **4**. Niedziałające/niezgodne linki: **0**.
 
 ⚠️ Status `online_matched` oznacza dopasowanie zawartości strony, **nie** potwierdzenie dostępności przez sprzedającego.
 Szacunki są przed kredytem; rentowność jest modelowana. Rezerwa podatkowa PCC 2% jest domyślnym wariantem, nie rozstrzygnięciem prawnym.
 
-## Zweryfikowane online — kandydaci (niepotwierdzeni przez sprzedającego)
+## Dopasowane w ostatnich 48 godzinach — kandydaci (bez potwierdzenia sprzedającego)
 
 _Brak ofert, które spełniły wszystkie warunki automatycznej weryfikacji._
 ## Do weryfikacji (nie umieszczać w rankingu aktywnych)
@@ -28,3 +28,7 @@ _Brak._
 ## Zasada publikacji
 
 Nie przedstawiaj oferty jako dostępnej do zakupu bez kontaktu ze sprzedającym. Nie traktuj 403, 429, CAPTCHA, strony ładowanej JS lub blokady robots jako dowodu usunięcia ogłoszenia. Nie traktuj czynszu z oferty jako gwarantowanego przychodu.
+
+## Jak interpretować wynik
+
+Ten program monitoruje tylko adresy umieszczone w config/watchlist.csv; nie znajduje automatycznie nowych ogłoszeń. Status access_restricted oznacza blokadę dostępu, a nie usuniętą ofertę. Dopasowanie starsze niż 48 godzin automatycznie wraca do kontroli ręcznej.
