@@ -104,12 +104,15 @@ def candidate(entry, expected_city=None):
     matches = [c for c in CITIES if f" {normalize(c)} " in norm]
     if len(matches) == 1 and (expected_city is None or matches[0] == expected_city):
         city = matches[0]
-    elif not matches and expected_city:
-        city = expected_city
     else:
+        # City names must be visible in each listing, not inferred from a feed.
+        # Some publisher 'city' feeds also return unrelated cities/regions.
         return None
-    price = _extract_price(entry["title"] + " " + entry["snippet"])
-    area = _extract_area(entry["title"] + " " + entry["snippet"])
+    slug = urllib.parse.unquote(urllib.parse.urlsplit(url).path)
+    slug_price = re.search(r"(?<!\\d)(\\d{6,8})-pln(?:-|/|$)", slug, re.I)
+    slug_area = re.search(r"(?<!\\d)(\\d{2,3})(?:m2)(?:-|/|$)", slug, re.I)
+    price = int(slug_price.group(1)) if slug_price else _extract_price(entry["title"] + " " + entry["snippet"])
+    area = float(slug_area.group(1)) if slug_area else _extract_area(entry["title"] + " " + entry["snippet"])
     if area is not None and area < 35:
         return None
     if price is not None and (price < 100000 or Decimal(price) * Decimal("1.02") + 5000 > 750000):
