@@ -22,7 +22,7 @@ BUDGET = 750_000
 MIN_AREA = 35
 SEARCH_USER_AGENT = "HomeHunterPersonalRssReader/0.2"
 PRICE_RE = re.compile(
-    r"(?<!\d)((?:[1-9]\d{2}(?:[ \u00a0.]\d{3})+)|(?:[1-9]\d{5,6}))\s*(?:zł|pln)\b",
+    r"(?<!\d)((?:[1-9]\d{2}(?:[ \u00a0.]\d{3})+)|(?:[1-9]\d{5,6}))\s*(?:zł|zl|pln)\b",
     re.IGNORECASE,
 )
 AREA_RE = re.compile(r"(?<!\d)(\d{2,3}(?:[.,]\d{1,2})?)\s*(?:m²|m2|m\s*kw\.?)\b", re.IGNORECASE)
