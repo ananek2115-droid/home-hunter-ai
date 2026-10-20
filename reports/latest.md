@@ -25,6 +25,19 @@ _Brak._
 
 _Brak._
 
+## Automatyczne wyszukiwanie: Trójmiasto i Toruń
+
+Indeks Bing RSS: 8/8 zapytań udanych; nowe adresy znalezione w ostatnim uruchomieniu: 0.
+Nowe oznacza pierwszy raz wykryte przez tego agenta, a NIE nowo opublikowane. Wynik wyszukiwarki nie potwierdza dostępności, ceny, prowizji ani aktualności.
+
+### Kandydaci, wymagający potwierdzenia u sprzedawcy
+
+_Brak kandydatów w bazie odkryć._
+
+
+Wstępny limit kosztów: cena + 2% PCC + 5 tys. zł rezerwy. Nieznane koszty, prowizja i remont mogą przekroczyć 750 tys. zł.
+
+
 ## Zasada publikacji
 
 Nie przedstawiaj oferty jako dostępnej do zakupu bez kontaktu ze sprzedającym. Nie traktuj 403, 429, CAPTCHA, strony ładowanej JS lub blokady robots jako dowodu usunięcia ogłoszenia. Nie traktuj czynszu z oferty jako gwarantowanego przychodu.
