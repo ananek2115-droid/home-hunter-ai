@@ -1,6 +1,9 @@
 name: Home Hunter Monitor
 
 on:
+  push:
+    branches: [main]
+    paths: ['home_hunter/**', 'config/**', '.github/workflows/monitor.yml']
   workflow_dispatch:
   schedule:
     - cron: "15 6 * * *"
@@ -9,18 +12,28 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: home-hunter-monitor
+  cancel-in-progress: false
+
 jobs:
   monitor:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Run regression tests
+        run: python -m unittest discover -s tests -v
 
       - name: Initialize database
         run: python -m home_hunter --db data/home_hunter.sqlite3 init
