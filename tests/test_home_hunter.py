@@ -155,3 +155,55 @@ class VerificationInvalidationTests(unittest.TestCase):
             self.assertEqual(info['verification_status'],'never_checked')
             self.assertIsNone(info['checked_at'])
             c.close()
+
+class MonitorReliabilityTests(unittest.TestCase):
+    def test_recent_checks_require_timezone_and_freshness(self):
+        from datetime import datetime, timedelta, timezone
+        from home_hunter.cli import is_recent_check
+        now=datetime(2026,10,20,14,0,tzinfo=timezone.utc)
+        self.assertTrue(is_recent_check((now-timedelta(hours=4)).isoformat(),now=now))
+        self.assertFalse(is_recent_check((now-timedelta(hours=49)).isoformat(),now=now))
+        self.assertFalse(is_recent_check((now+timedelta(hours=1)).isoformat(),now=now))
+        self.assertFalse(is_recent_check("2026-10-20T12:00:00",now=now))
+        self.assertFalse(is_recent_check(None,now=now))
+
+    def test_stale_page_match_not_ranked(self):
+        from home_hunter.cli import generate_report
+        with tempfile.TemporaryDirectory() as d:
+            c=connect(str(Path(d)/'test.sqlite'))
+            a=offer()
+            uid=upsert_offer(c,a)
+            write_check(c,uid,'online_matched',200,a.url,'Matched in the past')
+            c.execute("UPDATE offers SET checked_at='2020-01-01T00:00:00+00:00' WHERE uid=?",(uid,))
+            c.commit()
+            counts=generate_report(c,str(Path(d)/'report.md'))
+            self.assertEqual(counts,(0,1,0))
+            c.close()
+
+    def test_rotation_checks_oldest_first(self):
+        from unittest.mock import patch
+        from home_hunter.cli import check_all
+        from home_hunter.verify import CheckResult
+        with tempfile.TemporaryDirectory() as d:
+            c=connect(str(Path(d)/'test.sqlite'))
+            first=offer()
+            second=dataclasses.replace(first,url='https://www.olx.pl/d/oferta/another-ID2ABC.html',listing_id='ID2ABC')
+            first_id=upsert_offer(c,first)
+            second_id=upsert_offer(c,second)
+            write_check(c,first_id,'needs_manual_review')
+            observed=[]
+            def fake_inspect(item):
+                observed.append(item.listing_id)
+                return CheckResult('needs_manual_review',None,item.url,'test')
+            with patch('home_hunter.cli.inspect',fake_inspect):
+                self.assertEqual(check_all(c,1),1)
+            self.assertEqual(observed,['ID2ABC'])
+            c.close()
+
+    def test_negative_limit_is_invalid(self):
+        from home_hunter.cli import check_all
+        with tempfile.TemporaryDirectory() as d:
+            c=connect(str(Path(d)/'test.sqlite'))
+            with self.assertRaises(ValueError):
+                check_all(c,-1)
+            c.close()
