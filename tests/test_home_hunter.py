@@ -207,3 +207,34 @@ class MonitorReliabilityTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 check_all(c,-1)
             c.close()
+
+class DiscoveryTests(unittest.TestCase):
+    def test_torun_is_supported(self):
+        from home_hunter.model import offer_from_row
+        item=offer_from_row({'source':'olx','listing_id':'test','url':'https://www.olx.pl/d/oferta/test','city':'Toruń','street':'', 'price_pln':'400000','area_m2':'40','rooms':'2'})
+        self.assertEqual(item.city,'Toruń')
+
+    def test_feed_parsing_and_filtering(self):
+        from home_hunter.discover import parse_rss, candidate_from_result, canonical_listing_url
+        xml=b'<rss version="2.0"><channel><item><title>Mieszkanie Torun 42 m2 450 000 zl</title><link>https://www.olx.pl/d/oferta/abc?tracking=yes</link><description>Torun mieszkanie 2 pokoje</description></item></channel></rss>'
+        item=parse_rss(xml)[0]
+        found=candidate_from_result('Toruń',item)
+        self.assertIsNotNone(found)
+        self.assertEqual(found['price_pln'],450000)
+        self.assertEqual(found['area_m2'],42.0)
+        self.assertEqual(found['url'],'https://olx.pl/d/oferta/abc')
+        self.assertIsNone(candidate_from_result('Gdynia',item))
+        self.assertIsNone(canonical_listing_url('https://example.com/a'))
+
+    def test_discovery_deduplicates(self):
+        from home_hunter.discover import run_discovery
+        with tempfile.TemporaryDirectory() as d:
+            c=connect(str(Path(d)/'test.db'))
+            xml=b'<rss><channel><item><title>Mieszkanie Torun 42 m2 450 000 zl</title><link>https://www.olx.pl/d/oferta/abc</link><description>Torun mieszkanie</description></item></channel></rss>'
+            def fetch(query): return xml
+            a=run_discovery(c,fetch=fetch)
+            b=run_discovery(c,fetch=fetch)
+            self.assertEqual(a['new'],1)
+            self.assertEqual(b['new'],0)
+            self.assertEqual(c.execute('SELECT COUNT(*) FROM discoveries').fetchone()[0],1)
+            c.close()
