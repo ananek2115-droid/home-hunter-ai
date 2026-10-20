@@ -41,6 +41,10 @@ jobs:
       - name: Import watchlist
         run: python -m home_hunter --db data/home_hunter.sqlite3 import-csv config/watchlist.csv
 
+      - name: Discover new listings (Bing RSS)
+        run: python -m home_hunter --db data/home_hunter.sqlite3 discover
+        continue-on-error: true
+
       - name: Detect duplicates
         run: python -m home_hunter --db data/home_hunter.sqlite3 dedupe
 

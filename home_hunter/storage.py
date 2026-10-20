@@ -51,6 +51,31 @@ def connect(path: str):
       UNIQUE(first_uid,second_uid)
     );
     ''')
+    c.executescript("""
+    CREATE TABLE IF NOT EXISTS discoveries (
+      url TEXT PRIMARY KEY,
+      city TEXT NOT NULL,
+      source TEXT NOT NULL,
+      title TEXT NOT NULL,
+      snippet TEXT,
+      price_pln INTEGER,
+      area_m2 REAL,
+      status TEXT NOT NULL,
+      first_seen TEXT NOT NULL,
+      last_seen TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS discovery_runs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      run_id TEXT NOT NULL,
+      run_at TEXT NOT NULL,
+      city TEXT NOT NULL,
+      query TEXT NOT NULL,
+      status TEXT NOT NULL,
+      results_count INTEGER NOT NULL,
+      new_count INTEGER NOT NULL,
+      error TEXT NOT NULL
+    );
+    """)
     c.commit();return c
 
 

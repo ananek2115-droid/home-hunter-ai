@@ -42,7 +42,7 @@ class Offer:
         x = urlsplit(self.url)
         if x.scheme != 'https' or not x.hostname or x.username or x.password:
             raise ValueError('Adres ogłoszenia musi być pełnym publicznym HTTPS URL')
-        if self.city.casefold().strip() not in {'gdańsk','gdansk','gdynia','sopot'}:
+        if self.city.casefold().strip() not in {'gdańsk','gdansk','gdynia','sopot','toruń','torun'}:
             raise ValueError('Poza Trójmiastem')
         if self.area_m2 < Decimal('35'):
             raise ValueError('Metraż poniżej 35 m²')
