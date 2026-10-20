@@ -266,3 +266,21 @@ class OfficialFeedTests(unittest.TestCase):
             status=c.execute('SELECT verification_status FROM discoveries').fetchone()[0]
             self.assertEqual(status,'access_restricted')
             c.close()
+
+class CitySourceIntegrityTests(unittest.TestCase):
+    def test_unrelated_city_in_sopot_feed_is_rejected(self):
+        from home_hunter.feeds import candidate
+        item={'title':'Mieszkanie Bydgoszcz 42 m2 345 000 zl', 'snippet':'2 pokoje Bydgoszcz', 'url':'https://domy.pl/mieszkanie/bydgoszcz-2-pokoje-345000-pln-42m2-sba/dol1745211933'}
+        self.assertIsNone(candidate(item,'Sopot'))
+
+    def test_slug_price_over_budget_rejected(self):
+        from home_hunter.feeds import candidate
+        item={'title':'Mieszkanie Gdańsk Śródmieście', 'snippet':'3 pokoje', 'url':'https://domy.pl/mieszkanie/gdansk-3-pokoje-1730000-pln-79m2-sba/dol1745211758'}
+        self.assertIsNone(candidate(item,'Gdańsk'))
+
+    def test_slug_price_under_budget_parsed(self):
+        from home_hunter.feeds import candidate
+        item={'title':'Mieszkanie Gdynia Redłowo','snippet':'3 pokoje','url':'https://domy.pl/mieszkanie/gdynia-redlowo-665000-pln-54m2-sba/dol1745211406'}
+        found=candidate(item,'Gdynia')
+        self.assertEqual(found['price_pln'],665000)
+        self.assertEqual(found['area_m2'],54.0)
