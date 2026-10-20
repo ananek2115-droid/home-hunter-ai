@@ -30,7 +30,7 @@ AREA_RE = re.compile(r"(?<!\d)(\d{2,3}(?:[.,]\d{1,2})?)\s*(?:m²|m2|m\s*kw\.?)\b
 
 def search_queries():
     return tuple(
-        (city, f"site:{domain}{path} mieszkanie sprzedaż {city}")
+        (city, f"site:{domain} mieszkanie sprzedaż {city}")
         for city in CITIES for domain, path in SITES
     )
 
