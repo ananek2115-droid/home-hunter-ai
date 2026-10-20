@@ -178,7 +178,7 @@ def verify_new(conn, limit=12, checker=inspect):
            WHERE source IN ('domy.pl','domiporta.pl')
              AND price_pln IS NOT NULL AND area_m2 IS NOT NULL
              AND (verified_at IS NULL OR verified_at < ?)
-           ORDER BY verified_at IS NOT NULL, verified_at, first_seen LIMIT ?""",
+           ORDER BY verified_at IS NOT NULL, first_seen DESC, verified_at LIMIT ?""",
         (cutoff, limit)).fetchall()
     for row in rows:
         offer = Offer(source=row["source"], listing_id="", url=row["url"],
