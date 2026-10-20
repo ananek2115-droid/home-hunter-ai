@@ -9,6 +9,7 @@ from .model import offer_from_row
 from .storage import connect,list_offers,set_candidate,upsert_offer,write_check
 from .verify import inspect
 from .discover import run_discovery, discovery_report_lines
+from .feeds import ingest_feeds, verify_new, feed_report
 
 
 def fmt_num(num):
@@ -123,6 +124,7 @@ def generate_report(c,output):
     cand=c.execute('SELECT * FROM duplicate_candidates ORDER BY first_uid,second_uid').fetchall()
     if not cand:lines.append('_Brak._')
     for x in cand:lines.append(f'- Oferta #{x["first_uid"]} ↔ #{x["second_uid"]}: {x["verdict"]}')
+    lines.extend([''] + feed_report(c))
     lines.extend([''] + discovery_report_lines(c))
     lines+=['','## Zasada publikacji','',
             'Nie przedstawiaj oferty jako dostępnej do zakupu bez kontaktu ze sprzedającym. '
@@ -146,6 +148,8 @@ def main(argv=None):
     x=sub.add_parser('import-csv');x.add_argument('file')
     sub.add_parser('dedupe')
     sub.add_parser('discover')
+    sub.add_parser('discover-feeds')
+    x=sub.add_parser('verify-new');x.add_argument('--limit',type=int,default=12)
     x=sub.add_parser('check');x.add_argument('--limit',type=int,default=40)
     x=sub.add_parser('report');x.add_argument('--out',default='reports/latest.md')
     args=p.parse_args(argv)
@@ -155,6 +159,10 @@ def main(argv=None):
         elif args.cmd=='import-csv':
             ok,bad=import_csv(c,args.file);print(f'Zaimportowano: {ok}; błędne: {bad}')
             if bad: return 1
+        elif args.cmd=='discover-feeds':
+            r=ingest_feeds(c);print(f'Oficjalne źródła: {r}')
+            if r['ok']==0:return 2
+        elif args.cmd=='verify-new':print(f'Zweryfikowano kandydatów: {verify_new(c,args.limit)}')
         elif args.cmd=='discover':
             result=run_discovery(c);print(f'Odkrywanie: {result}')
             if result['ok']==0: return 2
