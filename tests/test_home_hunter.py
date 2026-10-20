@@ -238,3 +238,31 @@ class DiscoveryTests(unittest.TestCase):
             self.assertEqual(b['new'],0)
             self.assertEqual(c.execute('SELECT COUNT(*) FROM discoveries').fetchone()[0],1)
             c.close()
+
+class OfficialFeedTests(unittest.TestCase):
+    def test_official_rss_filter_torun(self):
+        from home_hunter.feeds import parse_feed, candidate
+        data=b'<rss><channel><item><title>Mieszkanie Torun 42 m2 450 000 zl</title><link>https://domy.pl/mieszkanie/10000001</link><description>Mieszkanie 2 pokoje, sprzedaz</description></item></channel></rss>'
+        listings=parse_feed(data)
+        self.assertEqual(len(listings),1)
+        item=candidate(listings[0],expected_city='Toruń')
+        self.assertIsNotNone(item)
+        self.assertEqual(item['city'],'Toruń')
+
+    def test_feed_dedup_and_verification(self):
+        from home_hunter.feeds import ingest_feeds, verify_new
+        from home_hunter.verify import CheckResult
+        from home_hunter.feeds import FEEDS
+        payload=b'<rss><channel><item><title>Mieszkanie Torun 42 m2 450 000 zl</title><link>https://domy.pl/mieszkanie/10000001</link><description>Mieszkanie Torun 42 m2 450 000 zl</description></item></channel></rss>'
+        def fake_feed(url):return payload
+        with tempfile.TemporaryDirectory() as d:
+            c=connect(str(Path(d)/'h.sqlite3'))
+            a=ingest_feeds(c,fetch=fake_feed)
+            b=ingest_feeds(c,fetch=fake_feed)
+            self.assertEqual(a['new'],1)
+            self.assertEqual(b['new'],0)
+            count=verify_new(c,checker=lambda o:CheckResult('access_restricted',403,o.url,'restricted'))
+            self.assertEqual(count,1)
+            status=c.execute('SELECT verification_status FROM discoveries').fetchone()[0]
+            self.assertEqual(status,'access_restricted')
+            c.close()
