@@ -1,5 +1,6 @@
 from __future__ import annotations
 import argparse, csv, json, sys
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 from .dedupe import compare
@@ -36,7 +37,12 @@ def dedupe(c):
 
 
 def check_all(c,limit):
-    rows=list_offers(c)
+    if limit < 0:
+        raise ValueError('Limit kontroli nie może być ujemny')
+    # Always check never-inspected listings first, then the oldest inspections.
+    # Otherwise --limit 40 silently starves all listings after the first 40.
+    rows=sorted(list_offers(c), key=lambda x: (
+        x[2]['checked_at'] is not None, x[2]['checked_at'] or '', x[0]))
     for idx,(uid,item,_) in enumerate(rows[:limit],1):
         result=inspect(item)
         write_check(c,uid,result.status,result.http_status,result.final_url,result.reason)
@@ -54,11 +60,27 @@ def draft_contact(offer):
             'potwierdzające stan prawny oraz czy cena podlega negocjacji?')
 
 
+def is_recent_check(checked_at, *, hours=48, now=None):
+    """A previous content match expires; old checks cannot prove current listing state."""
+    if not checked_at:
+        return False
+    try:
+        checked=datetime.fromisoformat(checked_at)
+    except (TypeError, ValueError):
+        return False
+    if checked.tzinfo is None:
+        return False
+    now=now or datetime.now(timezone.utc)
+    age=now-checked.astimezone(timezone.utc)
+    return timedelta(0) <= age <= timedelta(hours=hours)
+
+
 def generate_report(c,output):
     all_items=list_offers(c);verified=[];review=[];archived=[]
     for uid,offer,info in all_items:
         item=(uid,offer,info,analyze(offer))
-        if info['verification_status']=='online_matched' and item[3].total_cost<=BUDGET:
+        if (info['verification_status']=='online_matched' and is_recent_check(info['checked_at'])
+                and item[3].total_cost<=BUDGET):
             verified.append(item)
         elif info['verification_status'] in {'removed_link','content_mismatch','invalid_url'}:
             archived.append(item)
@@ -68,11 +90,11 @@ def generate_report(c,output):
     verified.sort(key=lambda a: (a[3].yield_pct is not None,a[3].yield_pct or Decimal('-1000')),reverse=True)
     lines=['# HOME HUNTER AI 4.0 — raport audytowalny','',
            f'**Budżet całkowity: {fmt_num(BUDGET)} zł.**',
-           '',f'Aktywne online, z rozpoznanymi parametrami: **{len(verified)}**. '
+           '',f'Strony dopasowane w ostatnich 48 h i w budżecie: **{len(verified)}**. '
            f'Do kontroli: **{len(review)}**. Niedziałające/niezgodne linki: **{len(archived)}**.',
            '', '⚠️ Status `online_matched` oznacza dopasowanie zawartości strony, **nie** potwierdzenie dostępności przez sprzedającego.',
            'Szacunki są przed kredytem; rentowność jest modelowana. Rezerwa podatkowa PCC 2% jest domyślnym wariantem, nie rozstrzygnięciem prawnym.',
-           '', '## Zweryfikowane online — kandydaci (niepotwierdzeni przez sprzedającego)','']
+           '', '## Dopasowane w ostatnich 48 godzinach — kandydaci (bez potwierdzenia sprzedającego)','']
     if not verified:lines.append('_Brak ofert, które spełniły wszystkie warunki automatycznej weryfikacji._')
     for uid,o,info,a in verified:
         cost_ok=a.total_cost<=BUDGET
@@ -103,7 +125,12 @@ def generate_report(c,output):
     lines+=['','## Zasada publikacji','',
             'Nie przedstawiaj oferty jako dostępnej do zakupu bez kontaktu ze sprzedającym. '
             'Nie traktuj 403, 429, CAPTCHA, strony ładowanej JS lub blokady robots jako dowodu usunięcia ogłoszenia. '
-            'Nie traktuj czynszu z oferty jako gwarantowanego przychodu.', '']
+            'Nie traktuj czynszu z oferty jako gwarantowanego przychodu.', '',
+            '## Jak interpretować wynik', '',
+            'Ten program monitoruje tylko adresy umieszczone w config/watchlist.csv; '
+            'nie znajduje automatycznie nowych ogłoszeń. '
+            'Status access_restricted oznacza blokadę dostępu, a nie usuniętą ofertę. '
+            'Dopasowanie starsze niż 48 godzin automatycznie wraca do kontroli ręcznej.', '']
     Path(output).parent.mkdir(parents=True,exist_ok=True)
     Path(output).write_text('\n'.join(lines),encoding='utf-8')
     return len(verified),len(review),len(archived)
