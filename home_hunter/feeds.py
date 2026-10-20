@@ -109,8 +109,8 @@ def candidate(entry, expected_city=None):
         # Some publisher 'city' feeds also return unrelated cities/regions.
         return None
     slug = urllib.parse.unquote(urllib.parse.urlsplit(url).path)
-    slug_price = re.search(r"(?<!\\d)(\\d{6,8})-pln(?:-|/|$)", slug, re.I)
-    slug_area = re.search(r"(?<!\\d)(\\d{2,3})(?:m2)(?:-|/|$)", slug, re.I)
+    slug_price = re.search(r"(?<!\d)(\d{6,8})-pln(?:-|/|$)", slug, re.I)
+    slug_area = re.search(r"(?<!\d)(\d{2,3})(?:m2)(?:-|/|$)", slug, re.I)
     price = int(slug_price.group(1)) if slug_price else _extract_price(entry["title"] + " " + entry["snippet"])
     area = float(slug_area.group(1)) if slug_area else _extract_area(entry["title"] + " " + entry["snippet"])
     if area is not None and area < 35:
