@@ -41,6 +41,13 @@ jobs:
       - name: Import watchlist
         run: python -m home_hunter --db data/home_hunter.sqlite3 import-csv config/watchlist.csv
 
+      - name: Import official property RSS
+        run: python -m home_hunter --db data/home_hunter.sqlite3 discover-feeds
+        continue-on-error: true
+
+      - name: Verify newly discovered candidates
+        run: python -m home_hunter --db data/home_hunter.sqlite3 verify-new --limit 12
+
       - name: Discover new listings (Bing RSS)
         run: python -m home_hunter --db data/home_hunter.sqlite3 discover
         continue-on-error: true

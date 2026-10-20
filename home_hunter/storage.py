@@ -76,6 +76,10 @@ def connect(path: str):
       error TEXT NOT NULL
     );
     """)
+    for name, kind in (("verified_at","TEXT"),("verification_status","TEXT"),("verification_note","TEXT"),("verification_http_status","INTEGER")):
+        cols={r["name"] for r in c.execute("PRAGMA table_info(discoveries)")}
+        if name not in cols:
+            c.execute(f"ALTER TABLE discoveries ADD COLUMN {name} {kind}")
     c.commit();return c
 
 
