@@ -27,8 +27,8 @@ _Brak._
 
 ## Automatycznie wyszukane mieszkania — Trójmiasto i Toruń
 
-**175** adresów w historii; **79** kompletnych, wstępnie w budżecie; **79** pierwszych wykryć w ostatnich 24 godzinach; **0** niedawno dopasowanych stron; **47** wykluczonych błędnych rekordów; **49** z brakami danych.
-Źródła oficjalne ostatnio: **6 udanych**, **0 błędnych**.
+**175** adresów w historii; **79** kompletnych, wstępnie w budżecie; **21** pierwszych wykryć w ostatnich 24 godzinach; **0** niedawno dopasowanych stron; **47** wykluczonych błędnych rekordów; **49** z brakami danych.
+Źródła oficjalne ostatnio: **2 udanych**, **4 błędnych**.
 
 **Uwaga:** „pierwsze wykrycie” nie jest datą publikacji ogłoszenia. Obecność w RSS/wyszukiwarce nie potwierdza, że nieruchomość nadal jest na sprzedaż. Nieznane prowizje i remonty mogą przekroczyć budżet 750 tys. zł. Nikt nie potwierdził stanu prawnego ani czynszu najmu.
 
