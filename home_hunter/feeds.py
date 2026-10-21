@@ -18,9 +18,7 @@ FEEDS = (
     ("Domy Gdańsk", "https://domy.pl/rss/mieszkania--gdansk-pl", "Gdańsk"),
     ("Domy Gdynia", "https://domy.pl/rss/mieszkania--gdynia-pl", "Gdynia"),
     ("Domy Sopot", "https://domy.pl/rss/mieszkania--sopot-pl", "Sopot"),
-    ("Domy Toruń", "https://domy.pl/rss/mieszkania--torun-pl", "Toruń"),
     ("Domiporta Pomorskie", "https://www.domiporta.pl/rss?CategoryName=mieszkania&Localizations%5B0%5D.Id=41&Rynek=Wtorny", None),
-    ("Domiporta Kujawsko-Pomorskie", "https://www.domiporta.pl/rss?CategoryName=mieszkania&Localizations%5B0%5D.Id=32&Rynek=Wtorny", None),
 )
 HOSTS = {"domy.pl", "www.domy.pl", "domiporta.pl", "www.domiporta.pl"}
 MAX_BYTES = 1_250_000
