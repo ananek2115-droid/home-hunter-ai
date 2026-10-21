@@ -15,7 +15,7 @@ from .dedupe import normalize
 from .storage import utc_now
 from .verify import safe_public_url
 
-CITIES = ("Gdańsk", "Gdynia", "Sopot", "Toruń")
+CITIES = ("Gdańsk", "Gdynia", "Sopot")
 SITES = (("olx.pl", "/d/oferta/"), ("otodom.pl", "/pl/oferta/"))
 MAX_FEED_BYTES = 500_000
 BUDGET = 750_000
