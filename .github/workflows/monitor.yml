@@ -51,13 +51,6 @@ jobs:
       - name: Verify newly discovered candidates
         run: python -m home_hunter --db data/home_hunter.sqlite3 verify-new --limit 12
 
-      - name: Discover new listings (Bing RSS)
-        run: python -m home_hunter --db data/home_hunter.sqlite3 discover
-        continue-on-error: true
-
-      - name: Reconcile discoveries after Bing RSS
-        run: python -m home_hunter --db data/home_hunter.sqlite3 reconcile
-
       - name: Detect duplicates
         run: python -m home_hunter --db data/home_hunter.sqlite3 dedupe
 
