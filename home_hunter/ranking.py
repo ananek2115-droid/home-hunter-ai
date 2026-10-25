@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from .discover import CITIES, candidate_from_result
+from .discover import CITIES, TARGET_CITIES, candidate_from_result
 from .feeds import candidate as feed_candidate
 
 OFFICIAL_SOURCES = {"domy.pl", "domiporta.pl"}
@@ -105,7 +105,7 @@ def _label(row, now):
 
 
 def _eligible(row):
-    if row["status"] == "excluded" or row["city"] not in CITIES:
+    if row["status"] == "excluded" or row["city"] not in TARGET_CITIES:
         return False
     p, a = row["price_pln"], row["area_m2"]
     return p is not None and a is not None and Decimal(str(a)) >= MIN_AREA and minimum_cost(p) <= BUDGET
@@ -130,8 +130,11 @@ def _line(row, now):
 def discovery_report(conn, limit=16, now=None):
     """One report over RSS/Bing discoveries, clearly separate from manual watchlist."""
     now = now or datetime.now(timezone.utc)
+    # Historical observations outside the current search area remain in SQLite,
+    # but must never appear in investor-facing Tricity shortlists or metrics.
     rows = [dict(r) for r in conn.execute(
-        "SELECT * FROM discoveries ORDER BY first_seen DESC, url"
+        "SELECT * FROM discoveries WHERE city IN (?,?,?) ORDER BY first_seen DESC, url",
+        TARGET_CITIES,
     ).fetchall()]
     good = [r for r in rows if _eligible(r)]
     incomplete = [r for r in rows if r["status"] != "excluded" and not _eligible(r)]
@@ -154,7 +157,7 @@ def discovery_report(conn, limit=16, now=None):
         statuses = {row["status"]: row["n"] for row in counts}
         source_status = f"Źródła oficjalne ostatnio: **{statuses.get('ok',0)} udanych**, **{statuses.get('error',0)} błędnych**."
     lines = [
-        "## Automatycznie wyszukane mieszkania — Trójmiasto i Toruń", "",
+        "## Automatycznie wyszukane mieszkania — Trójmiasto", "",
         f"**{len(rows)}** adresów w historii; **{len(good)}** kompletnych, wstępnie w budżecie; "
         f"**{len(fresh)}** pierwszych wykryć w ostatnich 24 godzinach; "
         f"**{len(matched)}** niedawno dopasowanych stron; "

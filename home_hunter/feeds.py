@@ -9,7 +9,7 @@ import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from .dedupe import normalize
-from .discover import CITIES, _extract_area, _extract_price
+from .discover import CITIES, TARGET_CITIES, _extract_area, _extract_price
 from .model import Offer
 from .storage import utc_now
 from .verify import inspect, safe_public_url
@@ -122,11 +122,18 @@ def candidate(entry, expected_city=None):
             "price_pln": price, "area_m2": area,
             "status": "preliminary" if price and area else "needs_details"}
 
-def ingest_feeds(conn, fetch=fetch_feed):
+def ingest_feeds(conn, fetch=fetch_feed, enabled_cities=TARGET_CITIES):
     run_id = "official-" + datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
     now = utc_now()
     success = failures = new_total = 0
     for name, url, city in FEEDS:
+        # Toruń remains parsable for older data/tests, but is not polled by default.
+        if city is not None and city not in enabled_cities:
+            continue
+        if name == "Domiporta Kujawsko-Pomorskie" and "Toruń" not in enabled_cities:
+            continue
+        if name == "Domiporta Pomorskie" and not any(c in enabled_cities for c in TARGET_CITIES):
+            continue
         count = added = 0
         status = "ok"
         error = ""
@@ -135,7 +142,7 @@ def ingest_feeds(conn, fetch=fetch_feed):
             count = len(entries)
             for entry in entries:
                 item = candidate(entry, city)
-                if not item:
+                if not item or item["city"] not in enabled_cities:
                     continue
                 if conn.execute("SELECT 1 FROM offers WHERE url IN (?,?)",
                                 (item["url"], item["url"].replace("https://", "https://www.", 1))).fetchone():
@@ -176,6 +183,7 @@ def verify_new(conn, limit=12, checker=inspect):
     rows = conn.execute(
         """SELECT * FROM discoveries
            WHERE source IN ('domy.pl','domiporta.pl')
+             AND city IN ('Gdańsk','Gdynia','Sopot')
              AND price_pln IS NOT NULL AND area_m2 IS NOT NULL
              AND (verified_at IS NULL OR verified_at < ?)
            ORDER BY verified_at IS NOT NULL, first_seen DESC, verified_at LIMIT ?""",
@@ -197,7 +205,7 @@ def feed_report(conn, limit=35):
     last = conn.execute(
         "SELECT run_id FROM discovery_runs WHERE run_id LIKE 'official-%' ORDER BY id DESC LIMIT 1"
     ).fetchone()
-    lines = ["## Automatyczne RSS: Domy.pl i Domiporta — Trójmiasto + Toruń", ""]
+    lines = ["## Automatyczne RSS: Domy.pl i Domiporta — Trójmiasto", ""]
     if not last:
         return lines + ["_Brak uruchomienia._", ""]
     runs = conn.execute("SELECT * FROM discovery_runs WHERE run_id=?", (last["run_id"],)).fetchall()
@@ -212,6 +220,7 @@ def feed_report(conn, limit=35):
         lines.append("**Brak danych źródłowych — nie interpretować jako brak ofert.**")
     rows = conn.execute(
         """SELECT * FROM discoveries WHERE source IN ('domy.pl','domiporta.pl')
+           AND city IN ('Gdańsk','Gdynia','Sopot')
            ORDER BY (verification_status='online_matched') DESC,
                     price_pln IS NULL, area_m2 IS NULL,
                     CAST(price_pln AS REAL)/NULLIF(area_m2,0), first_seen DESC LIMIT ?""",
