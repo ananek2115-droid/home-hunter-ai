@@ -417,3 +417,110 @@ class VerificationCoverageTests(unittest.TestCase):
                 "SELECT verification_status FROM discoveries WHERE city='Toruń'"
             ).fetchone()[0],None)
             db.close()
+
+class SellerPriorityTests(unittest.TestCase):
+    def test_owner_claim_is_priority_but_not_confirmed(self):
+        from home_hunter.seller import classify_seller
+        item=classify_seller("Sprzedaż prywatna - 2 pokoje", "Bez pośredników, od właściciela")
+        self.assertEqual(item.category,'owner_claim')
+        self.assertTrue(item.primary)
+        self.assertIn("deklaracja",item.evidence)
+
+    def test_agency_stays_out_of_priority(self):
+        from home_hunter.seller import classify_seller
+        item=classify_seller("Apartament 2 pokoje", "Oferta biura nieruchomości")
+        self.assertEqual(item.category,'agency_unknown')
+        self.assertFalse(item.primary)
+
+    def test_agency_zero_buyer_fee_is_prioritized_but_marked_claim(self):
+        from home_hunter.seller import classify_seller
+        item=classify_seller("Mieszkanie 45m2 - bez prowizji dla kupującego",
+                             "Biuro nieruchomości; cena 620 000 zł")
+        self.assertEqual(item.category,'zero_fee_claim')
+        self.assertTrue(item.primary)
+        self.assertIn("deklaracja",item.evidence)
+
+    def test_agency_fee_stays_out_even_with_owner_claim(self):
+        from home_hunter.seller import classify_seller
+        item=classify_seller("Bez pośredników", "Biuro nieruchomości. Prowizja dla kupującego")
+        self.assertEqual(item.category,'agency_fee')
+        self.assertFalse(item.primary)
+
+    def test_ambiguous_no_owner_no_fee_never_becomes_zero(self):
+        from home_hunter.seller import classify_seller
+        item=classify_seller("Piękne mieszkanie w Gdańsku", "Mieszkanie na sprzedaż")
+        self.assertEqual(item.category,'unknown')
+        self.assertFalse(item.primary)
+
+    def test_inconsistent_agency_owner_claim_is_conflict(self):
+        from home_hunter.seller import classify_seller
+        item=classify_seller("Sprzedaż prywatna", "Oferta biura nieruchomości")
+        self.assertEqual(item.category,'conflict')
+        self.assertFalse(item.primary)
+
+    def test_bing_search_queries_prioritize_owner_and_zero_fee(self):
+        from home_hunter.discover import search_queries
+        found=[q for city,q in search_queries(cities=('Gdynia',))]
+        self.assertIn("bez pośredników",found[0])
+        self.assertTrue(any("od właściciela" in x for x in found))
+        self.assertTrue(any("bez prowizji" in x for x in found))
+        self.assertTrue(any('site:olx.pl mieszkanie' in x for x in found))
+
+    def test_report_separates_owner_unknown_and_agency(self):
+        from home_hunter.ranking import discovery_report
+        from datetime import datetime, timezone
+        with tempfile.TemporaryDirectory() as d:
+            conn=connect(str(Path(d)/'buyers.sqlite3'))
+            now=datetime(2026,10,25,10,30,tzinfo=timezone.utc)
+            cases=[
+                ('owner','Gdynia mieszkanie sprzedaż prywatna bez pośredników'),
+                ('agency','Gdańsk mieszkanie biuro nieruchomości'),
+                ('unknown','Sopot mieszkanie sprzedaż 2 pokoje'),
+                ('zero','Gdańsk mieszkanie bez prowizji dla kupującego'),
+            ]
+            for label,title in cases:
+                city = 'Gdynia' if label=='owner' else ('Sopot' if label=='unknown' else 'Gdańsk')
+                conn.execute("""INSERT INTO discoveries
+                (url,city,source,title,snippet,price_pln,area_m2,status,first_seen,last_seen)
+                VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                (f'https://domy.pl/mieszkanie/{label}-2-pokoje-560000-pln-40m2-sba/dol1745111{len(label)}',
+                city,'domy.pl',title,title,560000,40,'preliminary',now.isoformat(),now.isoformat()))
+            conn.commit()
+            report='\\n'.join(discovery_report(conn,limit=8,now=now))
+            p1=report.split('### 1. ')[1].split('### 2. ')[0]
+            p2=report.split('### 2. ')[1].split('### 3. ')[0]
+            p3=report.split('### 3. ')[1].split('### 4. ')[0]
+            self.assertIn('owner-2-pokoje',p1)
+            self.assertIn('zero-2-pokoje',p1)
+            self.assertNotIn('agency-2-pokoje',p1)
+            self.assertNotIn('unknown-2-pokoje',p1)
+            self.assertIn('unknown-2-pokoje',p2)
+            self.assertIn('agency-2-pokoje',p3)
+            self.assertIn('NIEPOTWIERDZONE',report)
+            conn.close()
+
+    def test_verification_prefers_private_owner_over_agency(self):
+        from home_hunter.feeds import verify_new
+        from home_hunter.verify import CheckResult
+        with tempfile.TemporaryDirectory() as d:
+            conn=connect(str(Path(d)/'priority.sqlite3'))
+            inputs=[
+                ('agency','Gdańsk mieszkanie, oferta agencji nieruchomości'),
+                ('owner','Gdynia mieszkanie bez pośredników - sprzedaż prywatna'),
+            ]
+            for label,title in inputs:
+                city = 'Gdynia' if label == 'owner' else 'Gdańsk'
+                conn.execute("""INSERT INTO discoveries
+                (url,city,source,title,snippet,price_pln,area_m2,status,first_seen,last_seen)
+                VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                (f'https://domy.pl/mieszkanie/{label}-2-pokoje-600000-pln-45m2-sba/dol174598700{len(label)}',
+                city,'domy.pl',title,title,600000,45,'preliminary',
+                '2026-10-25T10:00:00+00:00','2026-10-25T10:00:00+00:00'))
+            conn.commit()
+            checked=[]
+            def checker(offer):
+                checked.append(offer.url)
+                return CheckResult('access_restricted',403,offer.url,'blocked')
+            self.assertEqual(verify_new(conn,limit=1,checker=checker),1)
+            self.assertIn('/owner-',checked[0])
+            conn.close()
