@@ -566,3 +566,7 @@ class StrictBuyerCommissionTests(unittest.TestCase):
             self.assertIn('/buyer-',primary)
             self.assertIn('/vague-',needs_review)
             conn.close()
+
+    def test_polish_l_stroke_normalization(self):
+        from home_hunter.dedupe import normalize
+        self.assertEqual(normalize("Właściciel nie płaci prowizji"),"wlasciciel nie placi prowizji")
