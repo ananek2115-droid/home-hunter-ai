@@ -15,7 +15,8 @@ from .dedupe import normalize
 from .storage import utc_now
 from .verify import safe_public_url
 
-CITIES = ("Gdańsk", "Gdynia", "Sopot", "Toruń")
+CITIES = ("Gdańsk", "Gdynia", "Sopot", "Toruń")  # historical import compatibility
+TARGET_CITIES = ("Gdańsk", "Gdynia", "Sopot")  # current investor search profile
 SITES = (("olx.pl", "/d/oferta/"), ("otodom.pl", "/pl/oferta/"))
 MAX_FEED_BYTES = 500_000
 BUDGET = 750_000
@@ -28,10 +29,10 @@ PRICE_RE = re.compile(
 AREA_RE = re.compile(r"(?<!\d)(\d{2,3}(?:[.,]\d{1,2})?)\s*(?:m²|m2|m\s*kw\.?)\b", re.IGNORECASE)
 
 
-def search_queries():
+def search_queries(cities=TARGET_CITIES):
     return tuple(
         (city, f"site:{domain} mieszkanie sprzedaż {city}")
-        for city in CITIES for domain, path in SITES
+        for city in cities for domain, path in SITES
     )
 
 
@@ -124,11 +125,11 @@ def candidate_from_result(city, item):
     }
 
 
-def run_discovery(conn, fetch=fetch_rss):
+def run_discovery(conn, fetch=fetch_rss, cities=TARGET_CITIES):
     run_id = uuid.uuid4().hex
     run_at = utc_now()
     new = updated = ok = failed = 0
-    for city, query in search_queries():
+    for city, query in search_queries(cities):
         count = added = 0
         status, error = "ok", ""
         try:
@@ -181,7 +182,7 @@ def run_discovery(conn, fetch=fetch_rss):
 def discovery_report_lines(conn, max_items=30):
     last = conn.execute("SELECT run_id FROM discovery_runs ORDER BY id DESC LIMIT 1").fetchone()
     if last is None:
-        return ["## Automatyczne wyszukiwanie: Trójmiasto i Toruń", "",
+        return ["## Automatyczne wyszukiwanie: Trójmiasto", "",
                 "_Brak uruchomienia modułu odkrywania ogłoszeń._", ""]
     runs = conn.execute(
         "SELECT * FROM discovery_runs WHERE run_id=? ORDER BY id", (last["run_id"],)
