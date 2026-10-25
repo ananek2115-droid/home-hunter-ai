@@ -175,19 +175,57 @@ def ingest_feeds(conn, fetch=fetch_feed, enabled_cities=TARGET_CITIES):
         print(f"RSS {name}: {status}; wpisów {count}; nowych {added}" + (f"; {error}" if error else ""))
     return {"ok": success, "failed": failures, "new": new_total}
 
+def _area_group(row):
+    """Cluster likely same-street/building listings for fair verification sampling.
+
+    This key only controls scheduling; it does NOT merge offers or assert they
+    are the same physical apartment.
+    """
+    path = urllib.parse.urlsplit(row["url"]).path.rstrip("/")
+    segments = path.split("/")
+    slug = segments[-2] if len(segments) > 2 and segments[-1].startswith("dol") else segments[-1]
+    slug = re.sub(r"-(?:\d+-pokoje|kawalerka)-.*$", "", slug, flags=re.I)
+    slug = re.sub(r"-\d{6,8}-pln.*$", "", slug, flags=re.I)
+    return (row["city"], slug)
+
+
 def verify_new(conn, limit=12, checker=inspect):
-    """Page-check complete RSS candidates with existing robots-aware validator."""
+    """Check a diverse sample of in-scope RSS candidates, not 12 same-building flats."""
     if limit < 0:
         raise ValueError("Negative limit")
+    if limit == 0:
+        return 0
     cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat(timespec="seconds")
-    rows = conn.execute(
+    # Fetch a wider *candidate* pool, then choose at most one item per likely
+    # street/building. When coverage is exhausted, fill the remaining slots.
+    # This avoids wasting every check on a cluster of 12 similar flats.
+    pool = conn.execute(
         """SELECT * FROM discoveries
            WHERE source IN ('domy.pl','domiporta.pl')
              AND city IN ('Gdańsk','Gdynia','Sopot')
              AND price_pln IS NOT NULL AND area_m2 IS NOT NULL
              AND (verified_at IS NULL OR verified_at < ?)
            ORDER BY verified_at IS NOT NULL, first_seen DESC, verified_at LIMIT ?""",
-        (cutoff, limit)).fetchall()
+        (cutoff, min(max(20 * limit, 20), 1000))).fetchall()
+    rows = []
+    chosen_urls = set()
+    seen_groups = set()
+    for row in pool:
+        group = _area_group(row)
+        if group in seen_groups:
+            continue
+        seen_groups.add(group)
+        rows.append(row)
+        chosen_urls.add(row["url"])
+        if len(rows) == limit:
+            break
+    if len(rows) < limit:
+        for row in pool:
+            if row["url"] in chosen_urls:
+                continue
+            rows.append(row)
+            if len(rows) == limit:
+                break
     for row in rows:
         offer = Offer(source=row["source"], listing_id="", url=row["url"],
                       city=row["city"], street="", price_pln=Decimal(row["price_pln"]),
