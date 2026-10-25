@@ -1,7 +1,7 @@
 [README.md](https://github.com/user-attachments/files/33673803/README.md)
 # HOME HUNTER AI 4.0 — Trójmiasto
 
-**Działający prototyp kontrolera ofert, nie scraper OLX ani gotowy agent wyszukujący nowe ogłoszenia.**
+**Działający prototyp wykrywania kandydatów w RSS i kontroli znanych ofert. Nie potwierdza automatycznie możliwości zakupu ani rentowności; zablokowane strony pozostają do weryfikacji ręcznej.**
 
 Kryteria: Gdańsk / Gdynia / Sopot, zakup inwestycyjny, min. 35 m², **750 000 zł łącznie z dodatkowymi kosztami**, preferowany właściciel albo prowizja 0 zł. Zakładamy model najmu całorocznego bez kredytu — kalkulator kredytowy do późniejszego wdrożenia.
 
@@ -12,11 +12,11 @@ Kryteria: Gdańsk / Gdynia / Sopot, zakup inwestycyjny, min. 35 m², **750 000 z
 - Rozpoznawanie prawdopodobnych duplikatów, bez automatycznego łączenia mieszkań z tego samego budynku.
 - Kalkulator: pełny nakład, przychód przy 11 miesiącach najmu, ryczałt, koszty właściciela, rentowność i cena graniczna przy celu 4%.
 - Raport Markdown podzielony na oferty z dopasowaną stroną, niezweryfikowane i uszkodzone linki.
-- 19 testów regresyjnych; GitHub Actions do testów i powtarzania kontroli.
+- 36 testów regresyjnych w gałęzi aktualizacji; GitHub Actions do testów i powtarzania kontroli.
 
 ## Bardzo ważne ograniczenia
 
-1. **Brak zbierania nowych ofert z portali.** Program monitoruje tylko linki, które dodasz do CSV (ręcznie lub z dozwolonego źródła ogłoszeń/alertów). Do zbierania nowych ogłoszeń potrzebujemy integracji zgodnej z regulaminem serwisu lub importu alertów.
+1. **Wykrywanie nowych kandydatów, nie gotowych okazji.** Program pobiera RSS z Domy.pl i Domiporta, a także obsługuje osobną komendę eksperymentalnego wyszukiwania Bing RSS. Nie przeszukuje prywatnych API OLX ani nie obchodzi blokad. Kandydat z RSS nie jest potwierdzoną, nadal dostępną ofertą.
 2. `online_matched` oznacza jedynie, że treść publicznej strony wygląda na wskazane mieszkanie. **Nie potwierdza**, że sprzedający może je nadal sprzedać.
 3. Blokada antybotowa, 403/429, brak możliwości pobrania treści, CAPTCHA lub roboty nie są traktowane jako usunięcie mieszkania.
 4. Portale mają strony dynamiczne; wtedy status będzie `needs_manual_review`, nie automatyczne „aktywne”.
@@ -49,17 +49,17 @@ Dodatkowe: `floor`, `district`, `house_no`, `seller_type` (`owner`, `agency`, `u
 
 ## Uruchomienie GitHub Actions
 
-1. Utwórz **NOWE prywatne repozytorium** `home-hunter-ai` (nie korzystaj z `pearl-hunter-sec`).
+1. Repozytorium `home-hunter-ai` już istnieje. Jest obecnie **publiczne**; przed przechowywaniem prywatnych notatek negocjacyjnych, dokumentów lub danych finansowych zmień widoczność na prywatną.
 2. Przenieś zawartość ZIP do repozytorium; w GitHub wybierz **Actions → Home Hunter Monitor → Run workflow** na początek testowo.
 3. Workflow sam odpali testy, zaimportuje obserwowane linki, spróbuje sprawdzić ich strony i zapisze historię do bazy SQLite w prywatnym repo. Wymaga uprawnienia **Actions: read and write permissions** (lub reguły pozwalającej `contents: write`) i możliwości push do gałęzi.
 4. Włączenie cron uruchamia kontrole o `06:15` i `16:15 UTC` (czas w Polsce zmienia się z CET na CEST). GitHub scheduled workflows są best effort i mogą się opóźniać lub nie uruchomić w danym terminie.
-5. Monitoring pozostanie ograniczony do wpisów `config/watchlist.csv`. Nowe oferty muszą najpierw zasilić watchlistę.
+5. Monitoring obejmuje historyczne wpisy `config/watchlist.csv` oraz odkrywanie kandydatów z RSS. Domyślna lokalizacja to wyłącznie Gdańsk, Gdynia i Sopot. Starsze dane innych miast pozostają w SQLite, lecz nie pojawiają się w bieżącym rankingu. Kandydaci RSS pozostają niepotwierdzeni, dopóki źródło nie przejdzie niezależnej kontroli.
 
 Dla prywatności repo powinno pozostać prywatne. Jeśli nie chcesz wersjonować bazy danych w repo, usuń krok automatycznego commitu i podepnij inne trwałe przechowywanie — bez tego historia zniknie pomiędzy uruchomieniami runnerów.
 
 ## Mapa następnych prac
 
-- **v0.2** Import nowych ogłoszeń z dozwolonych alertów e-mail/RSS lub licencjonowanego API; źródło i czas pobrania.
+- **v0.2** [częściowo wykonane] Import kandydatów z RSS, z zapisem źródła i czasu obserwacji; pozostało rozbudowanie dozwolonych źródeł i wiarygodności weryfikacji.
 - **v0.3** Trwałe zdjęcia/hashe i precyzyjniejsze deduplikowanie; testowanie fałszywych dopasowań.
 - **v0.4** Warstwa cen transakcyjnych RCN oraz porównywalne umowy najmu; punktacja 0–100 tylko przy odpowiedniej jakości danych.
 - **v0.5** Alerty o potwierdzonych zmianach (z kontrolą identyfikatorów zdarzeń), panel ofert i kredyt.
@@ -67,3 +67,11 @@ Dla prywatności repo powinno pozostać prywatne. Jeśli nie chcesz wersjonować
 ## Pochodzenie rozwiązań technicznych
 
 Pomysły rozwinięto na podstawie materiałów Stack Overflow For Agents: techniki Jaccarda do podobnych treści, jawna obsługa przekierowań w web-automatyzacji, trwałe zdarzenia i idempotencja SQLite oraz konserwatywny etap filtrowania wyników AI. Zastosowanie do rynku nieruchomości jest adaptacją, a nie bezpośrednio potwierdzonym testem SOFA.
+
+## Stan operacyjny i interpretacja testów — 25.10.2026
+
+- Testy jednostkowe sprawdzają kod na danych kontrolowanych; zielony workflow **nie dowodzi**, że na zewnętrznych portalach udało się zweryfikować jakąkolwiek aktywną ofertę.
+- Domyślny zakres produkcyjny: Gdańsk, Gdynia, Sopot. Toruń jest wspierany tylko jako historyczny format danych lub opcjonalne jawne ustawienie funkcji, lecz nie jest przeszukiwany przez harmonogram i nie występuje w głównym raporcie.
+- `access_restricted` oznacza ograniczenia robota/serwisu, nie sprzedaż ani usunięcie lokalu. Gdy 0 ofert uzyska świeże dopasowanie strony, raport nie daje podstaw do rekomendowania zakupu.
+- Workflow nie ukrywa już awarii wszystkich kanałów RSS za `continue-on-error`. Problem źródła powinien być widoczny jako nieudany krok zamiast fałszywego potwierdzenia działania radaru.
+- Nadal brak zweryfikowanego, automatycznego modelu najmu dla nowych kandydatów; nie należy promować niskiej ceny za m² jako najwyższej stopy zwrotu.
