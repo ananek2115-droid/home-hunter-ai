@@ -147,9 +147,9 @@ def discovery_report(conn, limit=16, now=None):
     excluded = [r for r in rows if r["status"] == "excluded"]
 
     priority = [r for r in good if _seller(r).primary]
-    unknown = [r for r in good if _seller(r).category == "unknown"]
+    unknown = [r for r in good if _seller(r).category in {"unknown", "fee_ambiguous"}]
     agency = [r for r in good if not _seller(r).primary
-              and _seller(r).category != "unknown"]
+              and _seller(r).category not in {"unknown", "fee_ambiguous"}]
     priority.sort(key=lambda r: (
         not _recent(r["verified_at"], 48, now) or r["verification_status"] != "online_matched",
         not _recent(r["first_seen"], 24, now),
@@ -185,9 +185,10 @@ def discovery_report(conn, limit=16, now=None):
         f"Podział według NIEPOTWIERDZONYCH informacji w treści: "
         f"**{sum(_seller(r).category == 'owner_claim' for r in good)}** deklaracji właściciela, "
         f"**{sum(_seller(r).category == 'zero_fee_claim' for r in good)}** deklaracji 0% prowizji, "
-        f"**{len(unknown)}** nieznanych, **{len(agency)}** agencji/konfliktów/prowizji.",
+        f"**{len(unknown)}** nieznanych lub ogólnych haseł bez prowizji, "
+        f"**{len(agency)}** agencji/konfliktów/prowizji.",
         source_status, "",
-        "**WAŻNE:** frazy »bez pośredników« lub »0% prowizji« to deklaracje w reklamie, "
+        "**WAŻNE:** frazy »bez pośredników« lub deklaracje 0% dla kupującego to tylko reklama. "
         "**NIE potwierdzenie sprzedaży bez prowizji**. "
         "Nieznana prowizja nie jest równa 0 zł. Żadne ogłoszenie nie staje się "
         "potwierdzoną aktywną ofertą tylko dlatego, że pojawiło się w RSS.", "",
