@@ -6,7 +6,8 @@ from .model import Offer
 
 
 def normalize(s: str) -> str:
-    s=''.join(c for c in unicodedata.normalize('NFKD',str(s).casefold()) if not unicodedata.combining(c))
+    # NFKD does not decompose Polish ł; without this, 'płaci' becomes 'p aci'.
+    s=''.join(c for c in unicodedata.normalize('NFKD',str(s).casefold().replace('ł','l')) if not unicodedata.combining(c))
     return ' '.join(re.findall(r'[a-z0-9]+',s))
 
 

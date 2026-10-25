@@ -19,12 +19,11 @@ AGENCY_SIGNALS = (
     "agent nieruchomosci", "biuro posrednictwa",
 )
 ZERO_FEE_CLAIMS = (
-    "0 prowizji", "0 procent prowizji", "zero prowizji",
     "bez prowizji dla kupujacego", "brak prowizji dla kupujacego",
     "kupujacy nie placi prowizji", "kupujacy nie ponosi prowizji",
     "bez prowizji od kupujacego", "prowizja po stronie sprzedajacego",
-    "bez prowizji",
 )
+AMBIGUOUS_FEE_CLAIMS = ("bez prowizji", "0 prowizji", "zero prowizji", "0 procent prowizji")
 BUYER_FEE_CLAIMS = (
     "prowizja dla kupujacego", "prowizja po stronie kupujacego",
     "kupujacy placi prowizje", "koszt posrednictwa dla kupujacego",
@@ -33,7 +32,7 @@ BUYER_FEE_CLAIMS = (
 
 @dataclass(frozen=True)
 class SellerSignal:
-    category: str  # owner_claim, zero_fee_claim, agency_unknown, agency_fee, conflict, unknown
+    category: str  # owner_claim, zero_fee_claim, fee_ambiguous, agency_unknown, agency_fee, conflict, unknown
     evidence: str
     rank: int  # lower is preferred; does not indicate confirmed availability
 
@@ -57,6 +56,7 @@ def classify_seller(title: str = "", snippet: str = "") -> SellerSignal:
     agency = _any(text, AGENCY_SIGNALS)
     free = _any(text, ZERO_FEE_CLAIMS)
     paid = _any(text, BUYER_FEE_CLAIMS)
+    ambiguous = _any(text, AMBIGUOUS_FEE_CLAIMS)
     if paid:
         return SellerSignal("agency_fee", "ogłoszenie wspomina prowizję kupującego: " + paid, 5)
     if owner and agency:
@@ -65,6 +65,8 @@ def classify_seller(title: str = "", snippet: str = "") -> SellerSignal:
         return SellerSignal("owner_claim", "deklaracja sprzedaży prywatnej: " + owner, 0)
     if free:
         return SellerSignal("zero_fee_claim", "deklaracja 0% prowizji: " + free, 1)
+    if ambiguous:
+        return SellerSignal("fee_ambiguous", "nie wskazano strony, której dotyczy brak prowizji: " + ambiguous, 2)
     if agency:
         return SellerSignal("agency_unknown", "pośrednik: " + agency, 4)
     return SellerSignal("unknown", "brak potwierdzenia właściciela i prowizji", 3)

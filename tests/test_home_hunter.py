@@ -524,3 +524,49 @@ class SellerPriorityTests(unittest.TestCase):
             self.assertEqual(verify_new(conn,limit=1,checker=checker),1)
             self.assertIn('/owner-',checked[0])
             conn.close()
+
+class StrictBuyerCommissionTests(unittest.TestCase):
+    def test_generic_without_commission_is_ambiguous_not_priority(self):
+        from home_hunter.seller import classify_seller
+        candidate=classify_seller("Mieszkanie 60 m²", "Bez prowizji, korzystne warunki")
+        self.assertEqual(candidate.category,'fee_ambiguous')
+        self.assertFalse(candidate.primary)
+
+    def test_generic_zero_percent_is_ambiguous(self):
+        from home_hunter.seller import classify_seller
+        candidate=classify_seller("Apartament 0% prowizji", "Sprzedam mieszkanie")
+        self.assertEqual(candidate.category,'fee_ambiguous')
+        self.assertFalse(candidate.primary)
+
+    def test_explicit_buyer_zero_commission_is_priority(self):
+        from home_hunter.seller import classify_seller
+        candidate=classify_seller("Oferta biura", "Kupujący nie płaci prowizji")
+        self.assertEqual(candidate.category,'zero_fee_claim')
+        self.assertTrue(candidate.primary)
+
+    def test_generic_fee_claim_stays_in_unknown_section(self):
+        from home_hunter.ranking import discovery_report
+        from datetime import datetime, timezone
+        with tempfile.TemporaryDirectory() as d:
+            conn=connect(str(Path(d)/'fee.sqlite3'))
+            now=datetime(2026,10,25,10,30,tzinfo=timezone.utc)
+            for label,title in [('vague','Gdynia mieszkanie bez prowizji'),
+                                ('buyer','Gdynia mieszkanie bez prowizji dla kupującego')]:
+                conn.execute("""INSERT INTO discoveries
+                   (url,city,source,title,snippet,price_pln,area_m2,status,first_seen,last_seen)
+                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                   (f'https://domy.pl/mieszkanie/{label}-2-pokoje-550000-pln-40m2-sba/dol1745681{len(label)}',
+                    'Gdynia','domy.pl',title,title,550000,40,'preliminary',
+                    now.isoformat(),now.isoformat()))
+            conn.commit()
+            report='\\n'.join(discovery_report(conn,now=now))
+            primary=report.split('### 1. ')[1].split('### 2. ')[0]
+            needs_review=report.split('### 2. ')[1].split('### 3. ')[0]
+            self.assertNotIn('/vague-',primary)
+            self.assertIn('/buyer-',primary)
+            self.assertIn('/vague-',needs_review)
+            conn.close()
+
+    def test_polish_l_stroke_normalization(self):
+        from home_hunter.dedupe import normalize
+        self.assertEqual(normalize("Właściciel nie płaci prowizji"),"wlasciciel nie placi prowizji")
