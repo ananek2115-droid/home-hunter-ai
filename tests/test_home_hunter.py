@@ -361,3 +361,59 @@ class TricityProductionScopeTests(unittest.TestCase):
             self.assertNotIn('Toruń',report)
             self.assertEqual(c.execute('SELECT COUNT(*) FROM discoveries').fetchone()[0],2)
             c.close()
+
+class VerificationCoverageTests(unittest.TestCase):
+    def test_verification_rotates_across_streets(self):
+        from home_hunter.feeds import verify_new
+        from home_hunter.verify import CheckResult
+        with tempfile.TemporaryDirectory() as d:
+            db=connect(str(Path(d)/'coverage.db'))
+            cases=[]
+            for i in range(10):
+                cases.append(('Gdańsk','gdansk-brzezno-uczniowska',650000+i))
+            cases += [
+                ('Gdynia','gdynia-redlowo-hallera',620000),
+                ('Gdańsk','gdansk-wrzeszcz-kosciuszki',590000),
+            ]
+            for ix,(city,stem,price) in enumerate(cases):
+                url=f'https://domy.pl/mieszkanie/{stem}-2-pokoje-{price}-pln-40m2-sba/dol174500{ix:04d}'
+                db.execute("""INSERT INTO discoveries
+                   (url,city,source,title,snippet,price_pln,area_m2,status,first_seen,last_seen)
+                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                   (url,city,'domy.pl',f'{city} mieszkanie',f'{city} mieszkanie',
+                    price,40,'preliminary','2026-10-25T10:00:00+00:00','2026-10-25T10:00:00+00:00'))
+            db.commit()
+            checked=[]
+            def checker(item):
+                checked.append(item.url)
+                return CheckResult('needs_manual_review',200,item.url,'Test only')
+            self.assertEqual(verify_new(db,limit=3,checker=checker),3)
+            self.assertEqual(len(checked),3)
+            self.assertEqual(sum('uczniowska' in url for url in checked),1)
+            self.assertTrue(any('hallera' in url for url in checked))
+            self.assertTrue(any('kosciuszki' in url for url in checked))
+            db.close()
+
+    def test_verification_respects_target_cities(self):
+        from home_hunter.feeds import verify_new
+        from home_hunter.verify import CheckResult
+        with tempfile.TemporaryDirectory() as d:
+            db=connect(str(Path(d)/'coverage.db'))
+            for city,slug in [('Toruń','torun'),('Gdynia','gdynia')]:
+                url=f'https://domy.pl/mieszkanie/{slug}-2-pokoje-450000-pln-42m2-sba/dol17451234'
+                db.execute("""INSERT INTO discoveries
+                   (url,city,source,title,snippet,price_pln,area_m2,status,first_seen,last_seen)
+                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                   (url,city,'domy.pl',f'Mieszkanie {city}',f'Mieszkanie {city}',
+                    450000,42,'preliminary','2026-10-25T10:00:00+00:00','2026-10-25T10:00:00+00:00'))
+            db.commit()
+            checked=[]
+            def checker(item):
+                checked.append(item.city)
+                return CheckResult('access_restricted',403,item.url,'Test restricted')
+            self.assertEqual(verify_new(db,limit=2,checker=checker),1)
+            self.assertEqual(checked,['Gdynia'])
+            self.assertEqual(db.execute(
+                "SELECT verification_status FROM discoveries WHERE city='Toruń'"
+            ).fetchone()[0],None)
+            db.close()
