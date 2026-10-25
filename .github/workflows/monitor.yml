@@ -44,6 +44,10 @@ jobs:
       - name: Import official property RSS (Tricity only)
         run: python -m home_hunter --db data/home_hunter.sqlite3 discover-feeds
 
+      - name: Search owner-first public search-index RSS (supplementary)
+        run: python -m home_hunter --db data/home_hunter.sqlite3 discover
+        continue-on-error: true
+
       - name: Reconcile historical discoveries
         run: python -m home_hunter --db data/home_hunter.sqlite3 reconcile
 
