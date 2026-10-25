@@ -232,8 +232,8 @@ class DiscoveryTests(unittest.TestCase):
             c=connect(str(Path(d)/'test.db'))
             xml=b'<rss><channel><item><title>Mieszkanie Torun 42 m2 450 000 zl</title><link>https://www.olx.pl/d/oferta/abc</link><description>Torun mieszkanie</description></item></channel></rss>'
             def fetch(query): return xml
-            a=run_discovery(c,fetch=fetch)
-            b=run_discovery(c,fetch=fetch)
+            a=run_discovery(c,fetch=fetch,cities=('Toruń',))
+            b=run_discovery(c,fetch=fetch,cities=('Toruń',))
             self.assertEqual(a['new'],1)
             self.assertEqual(b['new'],0)
             self.assertEqual(c.execute('SELECT COUNT(*) FROM discoveries').fetchone()[0],1)
@@ -253,7 +253,7 @@ class OfficialFeedTests(unittest.TestCase):
         from home_hunter.feeds import ingest_feeds, verify_new
         from home_hunter.verify import CheckResult
         from home_hunter.feeds import FEEDS
-        payload=b'<rss><channel><item><title>Mieszkanie Torun 42 m2 450 000 zl</title><link>https://domy.pl/mieszkanie/10000001</link><description>Mieszkanie Torun 42 m2 450 000 zl</description></item></channel></rss>'
+        payload=b'<rss><channel><item><title>Mieszkanie Gdynia 42 m2 450 000 zl</title><link>https://domy.pl/mieszkanie/10000001</link><description>Mieszkanie Gdynia 42 m2 450 000 zl</description></item></channel></rss>'
         def fake_feed(url):return payload
         with tempfile.TemporaryDirectory() as d:
             c=connect(str(Path(d)/'h.sqlite3'))
@@ -312,11 +312,52 @@ class RebuiltPipelineTests(unittest.TestCase):
         from home_hunter.ranking import reconcile_discoveries, discovery_report
         with tempfile.TemporaryDirectory() as d:
             c=connect(str(Path(d)/"x.db"))
-            self.seed(c,"https://domy.pl/mieszkanie/torun-2-pokoje-550000-pln-46m2-sba/dol1745212213",
-                      "Toruń","Mieszkanie Toruń 550000 PLN 46m2",550000,46)
+            self.seed(c,"https://domy.pl/mieszkanie/gdynia-2-pokoje-550000-pln-46m2-sba/dol1745212213",
+                      "Gdynia","Mieszkanie Gdynia 550000 PLN 46m2",550000,46)
             reconcile_discoveries(c)
             report="\n".join(discovery_report(c, now=datetime(2026,10,20,20,0,tzinfo=timezone.utc)))
             self.assertIn("Nowo wykryte",report)
             self.assertIn("550 000 zł",report)
             self.assertIn("jeszcze bez weryfikacji",report)
+            c.close()
+
+class TricityProductionScopeTests(unittest.TestCase):
+    def test_default_search_queries_exclude_torun(self):
+        from home_hunter.discover import search_queries, TARGET_CITIES
+        queries = search_queries()
+        self.assertEqual({city for city, _ in queries}, set(TARGET_CITIES))
+        self.assertFalse(any("Toruń" in query for _, query in queries))
+
+    def test_official_feeds_skip_torun_even_when_feed_returns_it(self):
+        from home_hunter.feeds import ingest_feeds
+        payload=(b'<rss><channel><item><title>Mieszkanie Torun 42 m2 450 000 zl</title>'
+                 b'<link>https://domy.pl/mieszkanie/10000001</link>'
+                 b'<description>Mieszkanie Torun 42 m2 450 000 zl</description>'
+                 b'</item></channel></rss>')
+        with tempfile.TemporaryDirectory() as d:
+            c=connect(str(Path(d)/'history.sqlite3'))
+            r=ingest_feeds(c,fetch=lambda url:payload)
+            self.assertEqual(r['ok'],4)  # Gdańsk, Gdynia, Sopot and Pomorskie
+            self.assertEqual(r['new'],0)
+            self.assertEqual(c.execute("SELECT COUNT(*) FROM discoveries").fetchone()[0],0)
+            c.close()
+
+    def test_report_excludes_torun_but_retains_history(self):
+        from home_hunter.ranking import discovery_report
+        from datetime import datetime, timezone
+        with tempfile.TemporaryDirectory() as d:
+            c=connect(str(Path(d)/'history.sqlite3'))
+            now=datetime(2026,10,25,11,0,tzinfo=timezone.utc)
+            for city,slug,price in [('Toruń','torun',350000),('Gdynia','gdynia',430000)]:
+                c.execute("""INSERT INTO discoveries
+                   (url,city,source,title,snippet,price_pln,area_m2,status,first_seen,last_seen)
+                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                   (f'https://domy.pl/mieszkanie/{slug}-2-pokoje-{price}-pln-40m2-sba/dol1745212000',
+                    city,'domy.pl',f'Mieszkanie {city}',f'Mieszkanie {city}',
+                    price,40,'preliminary',now.isoformat(),now.isoformat()))
+            c.commit()
+            report='\\n'.join(discovery_report(c,now=now))
+            self.assertIn('Gdynia',report)
+            self.assertNotIn('Toruń',report)
+            self.assertEqual(c.execute('SELECT COUNT(*) FROM discoveries').fetchone()[0],2)
             c.close()
