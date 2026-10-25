@@ -41,13 +41,14 @@ jobs:
       - name: Import watchlist
         run: python -m home_hunter --db data/home_hunter.sqlite3 import-csv config/watchlist.csv
 
-      - name: Import official property RSS
+      - name: Import official property RSS (Tricity only)
         run: python -m home_hunter --db data/home_hunter.sqlite3 discover-feeds
-        continue-on-error: true
 
       - name: Reconcile historical discoveries
         run: python -m home_hunter --db data/home_hunter.sqlite3 reconcile
 
+      # Source outages should make the workflow visibly fail instead of hiding a
+      # zero-input monitor behind a green checkmark.
       - name: Verify newly discovered candidates
         run: python -m home_hunter --db data/home_hunter.sqlite3 verify-new --limit 12
 
