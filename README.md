@@ -80,7 +80,7 @@ Pomysły rozwinięto na podstawie materiałów Stack Overflow For Agents: techni
 
 1. Domyślnie preferuj ogłoszenia deklarujące sprzedaż prywatną **lub** 0% prowizji **dla kupującego**. W sekcji priorytetowej nie pokazuj typowych agencji z nieznaną prowizją.
 2. Wyszukiwanie przez publiczny indeks RSS Bing zawiera najpierw zapytania o sprzedaż bezpośrednią, 'od właściciela' i 0% prowizji, a następnie zapytania ogólne. To źródło jest uzupełniające i może się nie powieść niezależnie od oficjalnego RSS.
-3. Informację tekstową z ogłoszenia klasyfikujemy jako `owner_claim` lub `zero_fee_claim`, **nie jako zweryfikowane** zero prowizji; przy duplikatach i sprzecznych opisach wymagana jest kontrola.
+3. Informację tekstową z ogłoszenia klasyfikujemy jako `owner_claim` lub `zero_fee_claim` tylko gdy wskazuje właściciela lub konkretnie kupującego. Ogólne hasła `bez prowizji` / `0% prowizji` bez wskazania strony mają osobny status `fee_ambiguous` i nie wchodzą do priorytetu. Żaden tekst nie oznacza zweryfikowanego 0 zł.
 4. `agency_unknown`, `agency_fee` i `conflict` są wyłącznie rezerwą. Promocja wyjątku agencyjnego wymaga pisemnego potwierdzenia prowizji albo wiarygodnej przewagi cenowej po uwzględnieniu wszystkich opłat. Takiej przewagi model jeszcze nie weryfikuje.
 5. `unknown` jest osobną listą wymagającą ustalenia sprzedającego. Niewiedza o prowizji nigdy nie oznacza prowizji 0 zł. Nie należy przypisywać portalu OLX ani Domy.pl do właściciela na podstawie domeny.
 6. Kontrole nowo odkrytych mieszkań próbują w pierwszej kolejności wybierać deklarowane oferty prywatne/bez prowizji i różne lokalizacje; blokady `robots.txt` nadal pozostają nierozstrzygnięte.
