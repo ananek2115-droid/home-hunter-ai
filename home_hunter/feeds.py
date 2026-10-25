@@ -183,6 +183,7 @@ def verify_new(conn, limit=12, checker=inspect):
     rows = conn.execute(
         """SELECT * FROM discoveries
            WHERE source IN ('domy.pl','domiporta.pl')
+             AND city IN ('Gdańsk','Gdynia','Sopot')
              AND price_pln IS NOT NULL AND area_m2 IS NOT NULL
              AND (verified_at IS NULL OR verified_at < ?)
            ORDER BY verified_at IS NOT NULL, first_seen DESC, verified_at LIMIT ?""",
@@ -219,6 +220,7 @@ def feed_report(conn, limit=35):
         lines.append("**Brak danych źródłowych — nie interpretować jako brak ofert.**")
     rows = conn.execute(
         """SELECT * FROM discoveries WHERE source IN ('domy.pl','domiporta.pl')
+           AND city IN ('Gdańsk','Gdynia','Sopot')
            ORDER BY (verification_status='online_matched') DESC,
                     price_pln IS NULL, area_m2 IS NULL,
                     CAST(price_pln AS REAL)/NULLIF(area_m2,0), first_seen DESC LIMIT ?""",
