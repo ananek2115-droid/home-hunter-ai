@@ -191,7 +191,7 @@ def discovery_report(conn, limit=16, now=None):
         "**NIE potwierdzenie sprzedaży bez prowizji**. "
         "Nieznana prowizja nie jest równa 0 zł. Żadne ogłoszenie nie staje się "
         "potwierdzoną aktywną ofertą tylko dlatego, że pojawiło się w RSS.", "",
-        "### 1. Priorytet: ogłoszenia deklarujące właściciela albo 0% prowizji", "",
+        "### 1. Nowo wykryte i historyczne — priorytet: właściciel lub 0% prowizji", "",
     ]
     lines.extend(_line(r, now) for r in priority[:limit])
     if not priority:
