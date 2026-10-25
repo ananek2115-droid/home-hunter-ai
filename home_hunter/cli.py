@@ -125,14 +125,17 @@ def generate_report(c,output):
     cand=c.execute('SELECT * FROM duplicate_candidates ORDER BY first_uid,second_uid').fetchall()
     if not cand:lines.append('_Brak._')
     for x in cand:lines.append(f'- Oferta #{x["first_uid"]} ↔ #{x["second_uid"]}: {x["verdict"]}')
-    lines.extend([''] + discovery_report(c))
+    lines.extend(['', '## Jakość danych i ograniczenia', '',
+                 'Wyniki poniżej to wyłącznie kandydaci z Trójmiasta. Historyczne dane innych miast pozostają w bazie, ale są poza rankingiem.',
+                 'Wszystkie oferty odkryte przez RSS wymagają potwierdzenia ceny, dostępności i prowizji.',
+                 'Jeżeli liczba aktualnie dopasowanych stron wynosi 0, system nie posiada podstaw do rekomendacji zakupu.'] + discovery_report(c))
     lines+=['','## Zasada publikacji','',
             'Nie przedstawiaj oferty jako dostępnej do zakupu bez kontaktu ze sprzedającym. '
             'Nie traktuj 403, 429, CAPTCHA, strony ładowanej JS lub blokady robots jako dowodu usunięcia ogłoszenia. '
             'Nie traktuj czynszu z oferty jako gwarantowanego przychodu.', '',
             '## Jak interpretować wynik', '',
-            'Ten program monitoruje tylko adresy umieszczone w config/watchlist.csv; '
-            'nie znajduje automatycznie nowych ogłoszeń. '
+            'Program sprawdza historyczną watchlistę i odkrywa kandydatów z kanałów RSS. '
+            'Nowo wykryty adres nie oznacza aktywnej oferty, a wynik RSS nie dowodzi dostępności. '
             'Status access_restricted oznacza blokadę dostępu, a nie usuniętą ofertę. '
             'Dopasowanie starsze niż 48 godzin automatycznie wraca do kontroli ręcznej.', '']
     Path(output).parent.mkdir(parents=True,exist_ok=True)
