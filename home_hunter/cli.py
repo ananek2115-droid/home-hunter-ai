@@ -11,6 +11,7 @@ from .verify import inspect
 from .discover import run_discovery, discovery_report_lines
 from .feeds import ingest_feeds, verify_new
 from .ranking import reconcile_discoveries, discovery_report
+from .seller import known_offer_signal
 
 
 def fmt_num(num):
@@ -90,7 +91,12 @@ def generate_report(c,output):
         else:
             review.append(item)
     # By yield only when available; no fabricated 0–100 scoring without price/rent evidence.
-    verified.sort(key=lambda a: (a[3].yield_pct is not None,a[3].yield_pct or Decimal('-1000')),reverse=True)
+    # Explicit investor preference: private owner / buyer-zero-fee BEFORE yield.
+    # Historical metadata is a lead, not independently verified seller evidence.
+    verified.sort(key=lambda a: (
+        known_offer_signal(a[1]).rank,
+        -(a[3].yield_pct or Decimal('-1000')),
+    ))
     lines=['# HOME HUNTER AI 4.0 — raport audytowalny','',
            f'**Budżet całkowity: {fmt_num(BUDGET)} zł.**',
            '',f'Strony dopasowane w ostatnich 48 h i w budżecie: **{len(verified)}**. '
@@ -101,22 +107,25 @@ def generate_report(c,output):
     if not verified:lines.append('_Brak ofert, które spełniły wszystkie warunki automatycznej weryfikacji._')
     for uid,o,info,a in verified:
         cost_ok=a.total_cost<=BUDGET
-        fee_ok=o.seller_type=='owner' or o.buyer_fee_status=='confirmed_zero'
+        seller_info = known_offer_signal(o)
         lines.extend([
             f'### {o.city} / {o.street} — {fmt_num(o.price_pln)} zł',
             f'- Link: {o.url}',
             f'- Identyfikator: `{uid}` / `{o.source}:{o.listing_id}`; status: `{info["verification_status"]}`; sprawdzono: `{info["checked_at"]}`',
             f'- Powierzchnia: {o.area_m2} m², pokoje: {o.rooms}; pełny nakład modelowy: **{fmt_num(a.total_cost)} zł**.',
             f'- Najem prognozowany: {fmt_num(o.estimated_rent_pln)} zł; stopa netto: **{a.yield_pct:.2f}%**.' if a.yield_pct is not None else '- Najem i rentowność: **brak wystarczających danych**.',
-            f'- Limit: {"w budżecie" if cost_ok else "POZA BUDŻETEM"}; bezpośrednio/0%: {"wstępnie tak" if fee_ok else "NIEPOTWIERDZONE"}; prowizja: `{o.buyer_fee_status}`.',
+            f'- Limit: {"w budżecie" if cost_ok else "POZA BUDŻETEM"}; sprzedający: **{seller_info.category}**, {seller_info.evidence}; prowizja: `{o.buyer_fee_status}`. Brak potwierdzenia przez sprzedającego = nie zakładaj 0 zł.',
             f'- Liczba porównań najmu: {o.rent_comps_count}; ocena końcowa 0–100: **wstrzymana** bez rzetelnych porównań sprzedaży i stanu technicznego.',
             f'- Cena maksymalna dla 4% netto (model): {fmt_num(target_price_for_yield(o))} zł.' if target_price_for_yield(o) is not None else '- Cena maksymalna dla 4% netto: nieustalona.',
             f'- Uwagi: {o.notes or "brak"}',
             f'- Wiadomość do sprzedającego (do ręcznej wysyłki): {draft_contact(o)}', ''])
-    lines += ['## Do weryfikacji (nie umieszczać w rankingu aktywnych)','']
+    review.sort(key=lambda x: (known_offer_signal(x[1]).rank, x[1].price_pln))
+    lines += ['## Do weryfikacji (nie umieszczać w rankingu aktywnych)','',
+              'Pierwszeństwo mają prywatne oferty oraz 0% prowizji kupującego; wszystkie pozostałe pozostają do potwierdzenia.', '']
     if not review:lines.append('_Brak._')
     for uid,o,info,a in review:
-        lines.append(f'- **{o.city}, {o.street}** — {fmt_num(o.price_pln)} zł — `{info["verification_status"]}` — {info["check_note"] or "brak kontroli"} — {o.url}')
+        seller=known_offer_signal(o)
+        lines.append(f'- **{o.city}, {o.street}** — {fmt_num(o.price_pln)} zł — `{info["verification_status"]}` — {info["check_note"] or "brak kontroli"}; sprzedawca/prowizja: **{seller.category}**, {seller.evidence} — {o.url}')
     lines += ['', '## Wykluczone linki','']
     if not archived:lines.append('_Brak._')
     for uid,o,info,a in archived:

@@ -13,6 +13,7 @@ from .discover import CITIES, TARGET_CITIES, _extract_area, _extract_price
 from .model import Offer
 from .storage import utc_now
 from .verify import inspect, safe_public_url
+from .seller import classify_seller
 
 FEEDS = (
     ("Domy Gdańsk", "https://domy.pl/rss/mieszkania--gdansk-pl", "Gdańsk"),
@@ -210,6 +211,9 @@ def verify_new(conn, limit=12, checker=inspect):
     rows = []
     chosen_urls = set()
     seen_groups = set()
+    # Try owner / buyer-zero-fee advertisements before agency/unknown listings.
+    # A text claim is ONLY a lead and does not confirm the absence of commission.
+    pool = sorted(pool, key=lambda row: classify_seller(row["title"], row["snippet"]).rank)
     for row in pool:
         group = _area_group(row)
         if group in seen_groups:

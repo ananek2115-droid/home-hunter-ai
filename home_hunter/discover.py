@@ -30,10 +30,20 @@ AREA_RE = re.compile(r"(?<!\d)(\d{2,3}(?:[.,]\d{1,2})?)\s*(?:m²|m2|m\s*kw\.?)\b
 
 
 def search_queries(cities=TARGET_CITIES):
-    return tuple(
-        (city, f"site:{domain} mieszkanie sprzedaż {city}")
-        for city in cities for domain, path in SITES
-    )
+    """Search owner/zero-fee opportunities first, then use general discovery.
+
+    Query preferences do not prove the seller is private or that fee is zero.
+    """
+    queries = []
+    for city in cities:
+        queries.extend((
+            (city, f'site:olx.pl/d/oferta/ mieszkanie sprzedaż {city} "bez pośredników"'),
+            (city, f'site:olx.pl/d/oferta/ mieszkanie sprzedaż {city} "od właściciela"'),
+            (city, f'site:otodom.pl/pl/oferta/ mieszkanie sprzedaż {city} "bez prowizji"'),
+        ))
+        queries.extend((city, f"site:{domain} mieszkanie sprzedaż {city}")
+                       for domain, path in SITES)
+    return tuple(queries)
 
 
 class BingOnlyRedirect(urllib.request.HTTPRedirectHandler):
@@ -191,7 +201,7 @@ def discovery_report_lines(conn, max_items=30):
     errors = [row for row in runs if row["status"] != "ok"]
     count = sum(row["new_count"] for row in runs)
     lines = [
-        "## Automatyczne wyszukiwanie: Trójmiasto i Toruń", "",
+        "## Automatyczne wyszukiwanie: Trójmiasto", "",
         f"Indeks Bing RSS: {successful}/{len(runs)} zapytań udanych; "
         f"nowe adresy znalezione w ostatnim uruchomieniu: {count}.",
         "Nowe oznacza pierwszy raz wykryte przez tego agenta, a NIE nowo opublikowane. "

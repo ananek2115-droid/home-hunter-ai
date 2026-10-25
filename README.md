@@ -3,7 +3,7 @@
 
 **Działający prototyp wykrywania kandydatów w RSS i kontroli znanych ofert. Nie potwierdza automatycznie możliwości zakupu ani rentowności; zablokowane strony pozostają do weryfikacji ręcznej.**
 
-Kryteria: Gdańsk / Gdynia / Sopot, zakup inwestycyjny, min. 35 m², **750 000 zł łącznie z dodatkowymi kosztami**, preferowany właściciel albo prowizja 0 zł. Zakładamy model najmu całorocznego bez kredytu — kalkulator kredytowy do późniejszego wdrożenia.
+Kryteria: Gdańsk / Gdynia / Sopot, zakup inwestycyjny, min. 35 m², **750 000 zł łącznie z dodatkowymi kosztami**, **priorytet: sprzedaż od właściciela lub 0% prowizji kupującego**; agencje tylko jako udokumentowane wyjątki. Zakładamy model najmu całorocznego bez kredytu — kalkulator kredytowy do późniejszego wdrożenia.
 
 ## Co jest zaimplementowane
 
@@ -12,7 +12,7 @@ Kryteria: Gdańsk / Gdynia / Sopot, zakup inwestycyjny, min. 35 m², **750 000 z
 - Rozpoznawanie prawdopodobnych duplikatów, bez automatycznego łączenia mieszkań z tego samego budynku.
 - Kalkulator: pełny nakład, przychód przy 11 miesiącach najmu, ryczałt, koszty właściciela, rentowność i cena graniczna przy celu 4%.
 - Raport Markdown podzielony na oferty z dopasowaną stroną, niezweryfikowane i uszkodzone linki.
-- 36 testów regresyjnych w gałęzi aktualizacji; GitHub Actions do testów i powtarzania kontroli.
+- Testy regresyjne w GitHub Actions, w tym filtrowanie sprzedawców, przekierowania i duplikaty.
 
 ## Bardzo ważne ograniczenia
 
@@ -75,3 +75,13 @@ Pomysły rozwinięto na podstawie materiałów Stack Overflow For Agents: techni
 - `access_restricted` oznacza ograniczenia robota/serwisu, nie sprzedaż ani usunięcie lokalu. Gdy 0 ofert uzyska świeże dopasowanie strony, raport nie daje podstaw do rekomendowania zakupu.
 - Workflow nie ukrywa już awarii wszystkich kanałów RSS za `continue-on-error`. Problem źródła powinien być widoczny jako nieudany krok zamiast fałszywego potwierdzenia działania radaru.
 - Nadal brak zweryfikowanego, automatycznego modelu najmu dla nowych kandydatów; nie należy promować niskiej ceny za m² jako najwyższej stopy zwrotu.
+
+## Priorytet sprzedaży bezpośredniej i 0% prowizji (v4.1)
+
+1. Domyślnie preferuj ogłoszenia deklarujące sprzedaż prywatną **lub** 0% prowizji **dla kupującego**. W sekcji priorytetowej nie pokazuj typowych agencji z nieznaną prowizją.
+2. Wyszukiwanie przez publiczny indeks RSS Bing zawiera najpierw zapytania o sprzedaż bezpośrednią, 'od właściciela' i 0% prowizji, a następnie zapytania ogólne. To źródło jest uzupełniające i może się nie powieść niezależnie od oficjalnego RSS.
+3. Informację tekstową z ogłoszenia klasyfikujemy jako `owner_claim` lub `zero_fee_claim`, **nie jako zweryfikowane** zero prowizji; przy duplikatach i sprzecznych opisach wymagana jest kontrola.
+4. `agency_unknown`, `agency_fee` i `conflict` są wyłącznie rezerwą. Promocja wyjątku agencyjnego wymaga pisemnego potwierdzenia prowizji albo wiarygodnej przewagi cenowej po uwzględnieniu wszystkich opłat. Takiej przewagi model jeszcze nie weryfikuje.
+5. `unknown` jest osobną listą wymagającą ustalenia sprzedającego. Niewiedza o prowizji nigdy nie oznacza prowizji 0 zł. Nie należy przypisywać portalu OLX ani Domy.pl do właściciela na podstawie domeny.
+6. Kontrole nowo odkrytych mieszkań próbują w pierwszej kolejności wybierać deklarowane oferty prywatne/bez prowizji i różne lokalizacje; blokady `robots.txt` nadal pozostają nierozstrzygnięte.
+
