@@ -34,8 +34,8 @@ Wszystkie oferty odkryte przez RSS wymagają potwierdzenia ceny, dostępności i
 Jeżeli liczba aktualnie dopasowanych stron wynosi 0, system nie posiada podstaw do rekomendacji zakupu.
 ## Automatyczne kandydatury — Trójmiasto (najpierw właściciele i 0% prowizji)
 
-**595** adresów w historii; **445** kompletne, wstępnie w budżecie; **16** po raz pierwszy wykrytych w ostatnich 24 godzinach; **0** dopasowanych stron w ostatnich 48 godzinach.
-Podział według NIEPOTWIERDZONYCH informacji w treści: **1** deklaracji właściciela, **0** deklaracji 0% prowizji, **443** nieznanych lub ogólnych haseł bez prowizji, **1** agencji/konfliktów/prowizji.
+**600** adresów w historii; **450** kompletne, wstępnie w budżecie; **21** po raz pierwszy wykrytych w ostatnich 24 godzinach; **0** dopasowanych stron w ostatnich 48 godzinach.
+Podział według NIEPOTWIERDZONYCH informacji w treści: **1** deklaracji właściciela, **0** deklaracji 0% prowizji, **448** nieznanych lub ogólnych haseł bez prowizji, **1** agencji/konfliktów/prowizji.
 Źródła RSS ostatnio: **4 udanych**, **0 błędnych**.
 
 **WAŻNE:** frazy »bez pośredników« lub deklaracje 0% dla kupującego to tylko reklama. **NIE potwierdzenie sprzedaży bez prowizji**. Nieznana prowizja nie jest równa 0 zł. Żadne ogłoszenie nie staje się potwierdzoną aktywną ofertą tylko dlatego, że pojawiło się w RSS.
@@ -53,7 +53,7 @@ Podział według NIEPOTWIERDZONYCH informacji w treści: **1** deklaracji właś
 - **Gdańsk** — [Mieszkanie na sprzedaż: Gdańsk, Łostowice, 460 675 PLN](https://domy.pl/mieszkanie/gdansk-ujescisko_lostowice-2-pokoje-460675-pln-38m2-sba/dol1745304435) — **460 675 zł**, 38 m² (12 123 zł/m²); minimalny nakład modelowy **474 888 zł**; sprzedający/prowizja: **unknown** (brak potwierdzenia właściciela i prowizji; NIEPOTWIERDZONE przez sprzedającego); status: jeszcze bez weryfikacji strony; pierwszy raz wykryto 2026-11-05T07:35:39+00:00.
 - **Gdańsk** — [Mieszkanie na sprzedaż: Gdańsk, Przymorze, Piastowska, 499 000 PLN](https://domy.pl/mieszkanie/gdansk-przymorze-piastowska-2-pokoje-499000-pln-41m2-sba/dol1745307035) — **499 000 zł**, 41 m² (12 171 zł/m²); minimalny nakład modelowy **513 980 zł**; sprzedający/prowizja: **unknown** (brak potwierdzenia właściciela i prowizji; NIEPOTWIERDZONE przez sprzedającego); status: portal blokuje kontrolę — niepotwierdzone; pierwszy raz wykryto 2026-11-05T07:35:39+00:00.
 - **Gdańsk** — [Mieszkanie na sprzedaż: Gdańsk, Łostowice, 434 065 PLN](https://domy.pl/mieszkanie/gdansk-ujescisko_lostowice-2-pokoje-434065-pln-35m2-sba/dol1745304433) — **434 065 zł**, 35 m² (12 402 zł/m²); minimalny nakład modelowy **447 746 zł**; sprzedający/prowizja: **fee_ambiguous** (nie wskazano strony, której dotyczy brak prowizji: 0 prowizji; NIEPOTWIERDZONE przez sprzedającego); status: portal blokuje kontrolę — niepotwierdzone; pierwszy raz wykryto 2026-11-05T07:35:39+00:00.
-- **Gdynia** — [Mieszkanie na sprzedaż: Gdynia, Chwarzno-Wiczlino, Jana Kazimierza, 550 000 PLN](https://domy.pl/mieszkanie/gdynia-chwarzno_wiczlino-jana_kazimierza-2-pokoje-550000-pln-44m2-sba/dol1745307906) — **550 000 zł**, 44 m² (12 500 zł/m²); minimalny nakład modelowy **566 000 zł**; sprzedający/prowizja: **unknown** (brak potwierdzenia właściciela i prowizji; NIEPOTWIERDZONE przez sprzedającego); status: portal blokuje kontrolę — niepotwierdzone; pierwszy raz wykryto 2026-11-05T17:16:58+00:00.
+- **Gdańsk** — [Mieszkanie na sprzedaż: Gdańsk, Jasień, Stężycka, 575 000 PLN](https://domy.pl/mieszkanie/gdansk-jasien-stezycka-2-pokoje-575000-pln-46m2-sba/dol1745308590) — **575 000 zł**, 46 m² (12 500 zł/m²); minimalny nakład modelowy **591 500 zł**; sprzedający/prowizja: **unknown** (brak potwierdzenia właściciela i prowizji; NIEPOTWIERDZONE przez sprzedającego); status: portal blokuje kontrolę — niepotwierdzone; pierwszy raz wykryto 2026-11-06T07:31:54+00:00.
 
 ### 3. Agencje, konflikty i prowizja kupującego — wyłącznie rezerwa
 
