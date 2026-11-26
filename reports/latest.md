@@ -2,7 +2,7 @@
 
 **Budżet całkowity: 750 000 zł.**
 
-Strony dopasowane w ostatnich 48 h i w budżecie: **0**. Do kontroli: **0**. Niedziałające/niezgodne linki: **4**.
+Strony dopasowane w ostatnich 48 h i w budżecie: **0**. Do kontroli: **1**. Niedziałające/niezgodne linki: **3**.
 
 ⚠️ Status `online_matched` oznacza dopasowanie zawartości strony, **nie** potwierdzenie dostępności przez sprzedającego.
 Szacunki są przed kredytem; rentowność jest modelowana. Rezerwa podatkowa PCC 2% jest domyślnym wariantem, nie rozstrzygnięciem prawnym.
@@ -14,12 +14,11 @@ _Brak ofert, które spełniły wszystkie warunki automatycznej weryfikacji._
 
 Pierwszeństwo mają prywatne oferty oraz 0% prowizji kupującego; wszystkie pozostałe pozostają do potwierdzenia.
 
-_Brak._
+- **Gdynia, Witomino** — 489 000 zł — `needs_manual_review` — Not enough visible page content / JavaScript rendering; sprzedawca/prowizja: **owner_claim**, w CSV deklarowano właściciela; należy potwierdzić — https://www.olx.pl/d/oferta/wyposazone-2-pokoje-bez-dodatkowych-nakladow-finansowych-CID3-ID1cCPhR.html
 
 ## Wykluczone linki
 
 - **Gdynia, Podgórska** — `removed_link` — Listing link is gone; sale not proven — https://www.olx.pl/d/oferta/3-pokojowe-mieszkanie-w-gdyni-obluzu-z-wyposazeniem-sprzedaz-prywatna-CID3-ID1c9Rp4.html
-- **Gdynia, Witomino** — `removed_link` — Listing link is gone; sale not proven — https://www.olx.pl/d/oferta/wyposazone-2-pokoje-bez-dodatkowych-nakladow-finansowych-CID3-ID1cCPhR.html
 - **Gdynia, Redłowo** — `removed_link` — Listing link is gone; sale not proven — https://www.olx.pl/d/oferta/przytulne-mieszkanie-na-plycie-redlowskiej-CID3-ID1aQR63.html
 - **Gdańsk, Przymorze** — `removed_link` — Listing link is gone; sale not proven — https://www.olx.pl/d/oferta/sprzedam-atrakcyjne-mieszkanie-2-pokojowe-w-gdansku-przymorzu-idealne-do-zamieszkania-lub-jako-inwestycja-CID3-ID1b7Qf1.html
 
@@ -34,8 +33,8 @@ Wszystkie oferty odkryte przez RSS wymagają potwierdzenia ceny, dostępności i
 Jeżeli liczba aktualnie dopasowanych stron wynosi 0, system nie posiada podstaw do rekomendacji zakupu.
 ## Automatyczne kandydatury — Trójmiasto (najpierw właściciele i 0% prowizji)
 
-**1110** adresów w historii; **881** kompletne, wstępnie w budżecie; **30** po raz pierwszy wykrytych w ostatnich 24 godzinach; **0** dopasowanych stron w ostatnich 48 godzinach.
-Podział według NIEPOTWIERDZONYCH informacji w treści: **2** deklaracji właściciela, **3** deklaracji 0% prowizji, **875** nieznanych lub ogólnych haseł bez prowizji, **1** agencji/konfliktów/prowizji.
+**1124** adresów w historii; **895** kompletne, wstępnie w budżecie; **40** po raz pierwszy wykrytych w ostatnich 24 godzinach; **0** dopasowanych stron w ostatnich 48 godzinach.
+Podział według NIEPOTWIERDZONYCH informacji w treści: **2** deklaracji właściciela, **3** deklaracji 0% prowizji, **889** nieznanych lub ogólnych haseł bez prowizji, **1** agencji/konfliktów/prowizji.
 Źródła RSS ostatnio: **4 udanych**, **0 błędnych**.
 
 **WAŻNE:** frazy »bez pośredników« lub deklaracje 0% dla kupującego to tylko reklama. **NIE potwierdzenie sprzedaży bez prowizji**. Nieznana prowizja nie jest równa 0 zł. Żadne ogłoszenie nie staje się potwierdzoną aktywną ofertą tylko dlatego, że pojawiło się w RSS.
@@ -50,14 +49,14 @@ Podział według NIEPOTWIERDZONYCH informacji w treści: **2** deklaracji właś
 
 ### 2. Nieznany sprzedający lub prowizja — lista do wyjaśnienia
 
-- **Gdynia** — [Mieszkanie na sprzedaż: Gdynia, Oksywie, Żeglarzy, 349 000 PLN](https://domy.pl/mieszkanie/gdynia-oksywie-zeglarzy-2-pokoje-349000-pln-47m2-sba/dol1745408026) — **349 000 zł**, 47 m² (7 426 zł/m²); minimalny nakład modelowy **360 980 zł**; sprzedający/prowizja: **unknown** (brak potwierdzenia właściciela i prowizji; NIEPOTWIERDZONE przez sprzedającego); status: portal blokuje kontrolę — niepotwierdzone; pierwszy raz wykryto 2026-11-25T00:38:07+00:00.
 - **Gdańsk** — [Mieszkanie na sprzedaż: Gdańsk, Łostowice, 587 101 PLN](https://domy.pl/mieszkanie/gdansk-ujescisko_lostowice-4-pokoje-587101-pln-63m2-sba/dol1745416185) — **587 101 zł**, 63 m² (9 319 zł/m²); minimalny nakład modelowy **603 843 zł**; sprzedający/prowizja: **unknown** (brak potwierdzenia właściciela i prowizji; NIEPOTWIERDZONE przez sprzedającego); status: jeszcze bez weryfikacji strony; pierwszy raz wykryto 2026-11-26T00:16:29+00:00.
-- **Gdańsk** — [Mieszkanie na sprzedaż: Gdańsk, Orunia Południe, 587 752 PLN](https://domy.pl/mieszkanie/gdansk-orunia_sw_wojciech_lipce-3-pokoje-587752-pln-63m2-sba/dol1745408164) — **587 752 zł**, 63 m² (9 329 zł/m²); minimalny nakład modelowy **604 507 zł**; sprzedający/prowizja: **fee_ambiguous** (nie wskazano strony, której dotyczy brak prowizji: 0 prowizji; NIEPOTWIERDZONE przez sprzedającego); status: portal blokuje kontrolę — niepotwierdzone; pierwszy raz wykryto 2026-11-25T00:38:07+00:00.
+- **Gdańsk** — [Mieszkanie na sprzedaż: Gdańsk, Stogi, Jeremiasza Falck Polonusa, 535 000 PLN](https://domy.pl/mieszkanie/gdansk-stogi-jeremiasza_falck_polonusa-2-pokoje-535000-pln-52m2-sba/dol1745419884) — **535 000 zł**, 52 m² (10 288 zł/m²); minimalny nakład modelowy **550 700 zł**; sprzedający/prowizja: **unknown** (brak potwierdzenia właściciela i prowizji; NIEPOTWIERDZONE przez sprzedającego); status: portal blokuje kontrolę — niepotwierdzone; pierwszy raz wykryto 2026-11-26T16:58:37+00:00.
+- **Gdańsk** — [Mieszkanie na sprzedaż: Gdańsk, 402 000 PLN](https://domy.pl/mieszkanie/pomorskie-gdansk-2-pokoje-402000-pln-37m2-sba/dol1745420907) — **402 000 zł**, 37 m² (10 865 zł/m²); minimalny nakład modelowy **415 040 zł**; sprzedający/prowizja: **unknown** (brak potwierdzenia właściciela i prowizji; NIEPOTWIERDZONE przez sprzedającego); status: jeszcze bez weryfikacji strony; pierwszy raz wykryto 2026-11-26T16:58:37+00:00.
 - **Gdańsk** — [Mieszkanie na sprzedaż: Gdańsk, Łostowice, 566 346 PLN](https://domy.pl/mieszkanie/gdansk-ujescisko_lostowice-3-pokoje-566346-pln-52m2-sba/dol1745416184) — **566 346 zł**, 52 m² (10 891 zł/m²); minimalny nakład modelowy **582 673 zł**; sprzedający/prowizja: **unknown** (brak potwierdzenia właściciela i prowizji; NIEPOTWIERDZONE przez sprzedającego); status: portal blokuje kontrolę — niepotwierdzone; pierwszy raz wykryto 2026-11-26T00:16:29+00:00.
 - **Gdańsk** — [Mieszkanie na sprzedaż: Gdańsk, Orunia Górna, Starogardzka, 602 000 PLN](https://domy.pl/mieszkanie/gdansk-orunia_gorna_gdansk_poludnie-starogardzka-3-pokoje-602000-pln-55m2-sba/dol1745415655) — **602 000 zł**, 55 m² (10 945 zł/m²); minimalny nakład modelowy **619 040 zł**; sprzedający/prowizja: **unknown** (brak potwierdzenia właściciela i prowizji; NIEPOTWIERDZONE przez sprzedającego); status: portal blokuje kontrolę — niepotwierdzone; pierwszy raz wykryto 2026-11-25T17:18:26+00:00.
 - **Gdynia** — [Mieszkanie na sprzedaż: Gdynia, Wielki Kack, Szefki, 730 000 PLN](https://domy.pl/mieszkanie/gdynia-wielki_kack-waleriana_szefki-3-pokoje-730000-pln-65m2-sba/dol1745412253) — **730 000 zł**, 65 m² (11 231 zł/m²); minimalny nakład modelowy **749 600 zł**; sprzedający/prowizja: **unknown** (brak potwierdzenia właściciela i prowizji; NIEPOTWIERDZONE przez sprzedającego); status: portal blokuje kontrolę — niepotwierdzone; pierwszy raz wykryto 2026-11-25T17:18:26+00:00.
+- **Gdańsk** — [Mieszkanie na sprzedaż: Gdańsk, Piecki Migowo, Wiewiórcza, 462 000 PLN](https://domy.pl/mieszkanie/gdansk-piecki_migowo-wiewiorcza-kawalerka-462000-pln-41m2-sba/dol1745420847) — **462 000 zł**, 41 m² (11 268 zł/m²); minimalny nakład modelowy **476 240 zł**; sprzedający/prowizja: **unknown** (brak potwierdzenia właściciela i prowizji; NIEPOTWIERDZONE przez sprzedającego); status: portal blokuje kontrolę — niepotwierdzone; pierwszy raz wykryto 2026-11-26T16:58:37+00:00.
 - **Gdańsk** — [Mieszkanie na sprzedaż: Gdańsk, Chełm, Dragana, 549 000 PLN](https://domy.pl/mieszkanie/gdansk-chelm-marcina_dragana-2-pokoje-549000-pln-46m2-sba/dol1745415528) — **549 000 zł**, 46 m² (11 935 zł/m²); minimalny nakład modelowy **564 980 zł**; sprzedający/prowizja: **unknown** (brak potwierdzenia właściciela i prowizji; NIEPOTWIERDZONE przez sprzedającego); status: portal blokuje kontrolę — niepotwierdzone; pierwszy raz wykryto 2026-11-25T17:18:26+00:00.
-- **Gdańsk** — [Mieszkanie na sprzedaż: Gdańsk, Kowale, Zeusa, 629 900 PLN](https://domy.pl/mieszkanie/pomorskie-gdanski-zeusa-3-pokoje-629900-pln-52m2-sba/dol1745416136) — **629 900 zł**, 52 m² (12 113 zł/m²); minimalny nakład modelowy **647 498 zł**; sprzedający/prowizja: **unknown** (brak potwierdzenia właściciela i prowizji; NIEPOTWIERDZONE przez sprzedającego); status: portal blokuje kontrolę — niepotwierdzone; pierwszy raz wykryto 2026-11-26T00:16:29+00:00.
 
 ### 3. Agencje, konflikty i prowizja kupującego — wyłącznie rezerwa
 
